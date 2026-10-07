@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.6">
 </head>
 <body>
 
@@ -245,22 +245,144 @@
                   <input type="range" id="roomVolume" min="0" max="40" value="0" oninput="updateAudioVolumes()">
                   <span id="roomVolText" class="val-text">0%</span>
                 </div>
-                <div class="option-row">
-                  <label for="trimLeadIn">Cắt bỏ đoạn thừa trước khi nhạc bắt đầu:</label>
-                  <input type="checkbox" id="trimLeadIn" checked style="width:20px;height:20px;accent-color:#FE7409;">
-                  <span class="val-text" style="width:auto;font-weight:500;color:var(--text-muted);font-size:12px;">(video xuất ra bắt đầu đúng lúc vào nhạc)</span>
-                </div>
-              </div>
-
-              <div class="step2-cta">
-                <button class="btn-primary" onclick="goToStep3()">
-                  <span>Tiếp tục: Xuất Video ➔</span>
-                </button>
               </div>
 
             </div>
 
           </div>
+        </div>
+
+        <!-- Dedicated Trimming Card (Cắt gọt trước & sau video) -->
+        <div class="trim-card" id="trimCard">
+          <div class="trim-header">
+            <div class="trim-header-left">
+              <span class="trim-icon">✂️</span>
+              <div>
+                <h4>CẮT GỌT ĐOẠN THỪA (ĐẦU & ĐUÔI VIDEO)</h4>
+                <p>Tự động loại bỏ đoạn đứng chờ trước khi nhảy & đoạn thừa sau khi hết bài nhạc.</p>
+              </div>
+            </div>
+            <button type="button" class="btn-trim-reset" onclick="resetTrimToAuto()" title="Khôi phục cắt tự động theo bài nhạc">↺ Tự động cắt</button>
+          </div>
+
+          <div class="trim-grid">
+            <!-- Cột Trái: Đoạn Đầu (Trước khi nhảy) -->
+            <div class="trim-col">
+              <div class="trim-toggle-row">
+                <label class="switch-wrap">
+                  <input type="checkbox" id="trimStartToggle" checked onchange="onTrimToggleChange()">
+                  <span class="switch-slider"></span>
+                </label>
+                <div class="trim-toggle-label">
+                  <strong>Cắt bỏ đoạn chờ đầu</strong>
+                  <span id="trimStartHint" class="trim-hint">Bỏ đoạn đứng chờ trước khi nhạc vào</span>
+                </div>
+              </div>
+
+              <div class="trim-stepper-wrap" id="trimStartControls">
+                <span class="stepper-label">Bắt đầu tại:</span>
+                <div class="stepper-box">
+                  <button type="button" class="btn-step" onclick="adjustTrimStart(-0.5)">-0.5s</button>
+                  <input type="number" id="trimStartInput" value="0.0" step="0.1" min="0" onchange="onTrimInputChange()">
+                  <span class="step-unit">giây</span>
+                  <button type="button" class="btn-step" onclick="adjustTrimStart(0.5)">+0.5s</button>
+                </div>
+              </div>
+
+              <div class="trim-quick-chips">
+                <button type="button" class="chip-btn" onclick="setTrimStartPreset('auto')">🎯 Lúc vào nhạc</button>
+                <button type="button" class="chip-btn" onclick="setTrimStartPreset('zero')">🎬 Từ đầu (0s)</button>
+              </div>
+            </div>
+
+            <!-- Cột Phải: Đoạn Đuôi (Sau khi nhảy xong) -->
+            <div class="trim-col">
+              <div class="trim-toggle-row">
+                <label class="switch-wrap">
+                  <input type="checkbox" id="trimEndToggle" checked onchange="onTrimToggleChange()">
+                  <span class="switch-slider"></span>
+                </label>
+                <div class="trim-toggle-label">
+                  <strong>Cắt đoạn thừa cuối clip</strong>
+                  <span id="trimEndHint" class="trim-hint">Dừng đúng khi hết bài nhạc gốc</span>
+                </div>
+              </div>
+
+              <div class="trim-stepper-wrap" id="trimEndControls">
+                <span class="stepper-label">Kết thúc tại:</span>
+                <div class="stepper-box">
+                  <button type="button" class="btn-step" onclick="adjustTrimEnd(-0.5)">-0.5s</button>
+                  <input type="number" id="trimEndInput" value="0.0" step="0.1" min="0" onchange="onTrimInputChange()">
+                  <span class="step-unit">giây</span>
+                  <button type="button" class="btn-step" onclick="adjustTrimEnd(0.5)">+0.5s</button>
+                </div>
+              </div>
+
+              <div class="trim-quick-chips">
+                <button type="button" class="chip-btn" onclick="setTrimEndPreset('auto')">🎯 Khi hết nhạc</button>
+                <button type="button" class="chip-btn" onclick="setTrimEndPreset('full')">🎬 Hết clip quay</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trimming Summary Bar -->
+          <div class="trim-summary-bar">
+            <div class="summary-info">
+              <span class="summary-icon">⏱️</span>
+              <div class="summary-texts">
+                <div id="trimSummaryTitle" class="summary-title">Thời lượng video xuất: <strong id="trimSummaryDur">00:00</strong></div>
+                <div id="trimSummaryBadges" class="summary-badges"></div>
+              </div>
+            </div>
+            <button type="button" class="btn-preview-trim" onclick="previewTrimmedRange()">
+              <span>▶ Nghe & xem thử đoạn cắt</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Resolution & Quality Card -->
+        <div class="resolution-card">
+          <div class="resolution-header">
+            <h4>📐 CHẤT LƯỢNG & ĐỘ PHÂN GIẢI XUẤT VIDEO</h4>
+            <span class="res-subtext">Tối ưu cho đăng TikTok, Instagram Reels & YouTube Shorts</span>
+          </div>
+
+          <div class="resolution-grid">
+            <label class="res-option-card active" id="resCardTiktok" onclick="selectResolutionMode('tiktok_1080p')">
+              <input type="radio" name="resMode" value="tiktok_1080p" checked>
+              <div class="res-card-body">
+                <div class="res-card-title-row">
+                  <span class="res-icon">✨</span>
+                  <span class="res-title">Nâng Nét 1080p TikTok Ready</span>
+                  <span class="badge-recommended">⭐ KHUYÊN DÙNG</span>
+                </div>
+                <p class="res-desc">
+                  Scale chuẩn 1080x1920 (9:16), lọc nét viền Unsharp và bitrate studio cao. Đăng TikTok/Reels nét căng, không bị vỡ hạt mờ hình.
+                </p>
+              </div>
+            </label>
+
+            <label class="res-option-card" id="resCardOriginal" onclick="selectResolutionMode('original')">
+              <input type="radio" name="resMode" value="original">
+              <div class="res-card-body">
+                <div class="res-card-title-row">
+                  <span class="res-icon">🚀</span>
+                  <span class="res-title">Giữ Nguyên Gốc</span>
+                </div>
+                <p class="res-desc">
+                  Giữ 100% độ nét camera của máy quay. Tốc độ xuất video siêu nhanh.
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Step 2 Final Action -->
+        <div class="action-footer" style="margin-top: 10px;">
+          <button class="btn-primary" style="font-size: 16px; padding: 16px 36px;" onclick="goToStep3()">
+            <span class="btn-icon">⚡</span>
+            <span>Tiếp tục: Xuất Video Hoàn Chỉnh ➔</span>
+          </button>
         </div>
 
       </section>
@@ -342,7 +464,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="sync-engine.js"></script>
-  <script src="app.js"></script>
+  <script src="sync-engine.js?v=2.6"></script>
+  <script src="app.js?v=2.6"></script>
 </body>
 </html>

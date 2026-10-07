@@ -20,7 +20,14 @@ const state = {
   audioGainGoc: null,
   audioGainNhay: null,
   syncEngine: new StyleFitSyncEngine(),
-  exportBlob: null
+  exportBlob: null,
+  sessionId: null,
+  danceDuration: 0,
+  originalDuration: 0,
+  trimStartSec: 0,
+  trimEndSec: 0,
+  resolutionMode: 'tiktok_1080p',
+  trimPreviewTimer: null
 };
 
 // DOM Elements
@@ -67,11 +74,32 @@ const el = {
   roomVolume: document.getElementById('roomVolume'),
   musicVolText: document.getElementById('musicVolText'),
   roomVolText: document.getElementById('roomVolText'),
-  trimLeadIn: document.getElementById('trimLeadIn'),
-  exportRetry: document.getElementById('exportRetry'),
 
+  // Trimming Card elements
+  trimCard: document.getElementById('trimCard'),
+  trimStartToggle: document.getElementById('trimStartToggle'),
+  trimStartHint: document.getElementById('trimStartHint'),
+  trimStartControls: document.getElementById('trimStartControls'),
+  trimStartInput: document.getElementById('trimStartInput'),
+  trimEndToggle: document.getElementById('trimEndToggle'),
+  trimEndHint: document.getElementById('trimEndHint'),
+  trimEndControls: document.getElementById('trimEndControls'),
+  trimEndInput: document.getElementById('trimEndInput'),
+  trimSummaryTitle: document.getElementById('trimSummaryTitle'),
+  trimSummaryDur: document.getElementById('trimSummaryDur'),
+  trimSummaryBadges: document.getElementById('trimSummaryBadges'),
+
+  // Resolution mode elements
+  resCardTiktok: document.getElementById('resCardTiktok'),
+  resCardOriginal: document.getElementById('resCardOriginal'),
+
+  // Step 3 Export elements
   exportProgressBox: document.getElementById('exportProgressBox'),
   exportResultBox: document.getElementById('exportResultBox'),
+  exportStatusTitle: document.getElementById('exportStatusTitle'),
+  exportStatusDesc: document.getElementById('exportStatusDesc'),
+  exportSpinner: document.getElementById('exportSpinner'),
+  exportRetry: document.getElementById('exportRetry'),
   progressBarFill: document.getElementById('progressBarFill'),
   progressPctText: document.getElementById('progressPctText'),
   finalVideo: document.getElementById('finalVideo'),
@@ -244,7 +272,12 @@ async function startAnalysis() {
     state.autoOffsetMs = Math.round(r.offsetMs);
     state.currentOffsetMs = state.autoOffsetMs;
     state.confidence = r.confidenceLevel;
+    state.danceDuration = Number(r.danceDuration) || (el.previewVideo.duration || 60);
+    state.originalDuration = Number(r.originalDuration) || (state.bufferGoc ? state.bufferGoc.duration : 60);
     el.offsetInput.value = state.currentOffsetMs;
+
+    // Initialize smart auto trimming for lead-in and outro
+    initTrimControls();
 
     const secs = (Math.abs(state.currentOffsetMs) / 1000).toFixed(2);
     const where = state.currentOffsetMs >= 0
@@ -404,6 +437,9 @@ function resetToAutoOffset() {
 
 function onOffsetChanged() {
   renderWaveforms();
+  if (typeof updateTrimSummary === 'function') {
+    updateTrimSummary();
+  }
   // If playing, restart preview at current position with new offset
   if (state.isPlaying) {
     const curTime = el.previewVideo.currentTime;
@@ -528,6 +564,194 @@ function updateAudioVolumes() {
 }
 
 // ==========================================
+// 6.5. TRIMMING & RESOLUTION CONTROLS
+// ==========================================
+function initTrimControls() {
+  const danceDur = state.danceDuration || (el.previewVideo && el.previewVideo.duration ? el.previewVideo.duration : 60);
+  const origDur = state.originalDuration || (state.bufferGoc ? state.bufferGoc.duration : 60);
+  const offSec = state.currentOffsetMs / 1000;
+
+  // 1. Auto Start: if offSec > 0.3s, start at offSec. Else start at 0s.
+  if (offSec > 0.3) {
+    state.trimStartSec = Math.round(offSec * 100) / 100;
+    if (el.trimStartToggle) el.trimStartToggle.checked = true;
+    if (el.trimStartHint) el.trimStartHint.textContent = `Bỏ ${state.trimStartSec.toFixed(2)}s đứng chờ trước khi nhạc vào`;
+  } else {
+    state.trimStartSec = 0.0;
+    if (el.trimStartToggle) el.trimStartToggle.checked = false;
+    if (el.trimStartHint) el.trimStartHint.textContent = `Không có đoạn chờ đầu (bắt đầu từ 0s)`;
+  }
+  if (el.trimStartInput) el.trimStartInput.value = state.trimStartSec.toFixed(1);
+
+  // 2. Auto End: when original music ends in dance video = offSec + origDur
+  const musicEndInDance = offSec + origDur;
+  if (danceDur - musicEndInDance > 0.5 && musicEndInDance > 2.0) {
+    state.trimEndSec = Math.min(danceDur, Math.round(musicEndInDance * 100) / 100);
+    if (el.trimEndToggle) el.trimEndToggle.checked = true;
+    const extraTail = (danceDur - state.trimEndSec).toFixed(1);
+    if (el.trimEndHint) el.trimEndHint.textContent = `Bỏ ${extraTail}s đoạn thừa sau khi hết nhạc`;
+  } else {
+    state.trimEndSec = Math.round(danceDur * 100) / 100;
+    if (el.trimEndToggle) el.trimEndToggle.checked = false;
+    if (el.trimEndHint) el.trimEndHint.textContent = `Giữ trọn vẹn đến hết video`;
+  }
+  if (el.trimEndInput) el.trimEndInput.value = state.trimEndSec.toFixed(1);
+
+  updateTrimUIState();
+  updateTrimSummary();
+}
+
+function updateTrimUIState() {
+  const startActive = el.trimStartToggle && el.trimStartToggle.checked;
+  const endActive = el.trimEndToggle && el.trimEndToggle.checked;
+
+  if (el.trimStartControls) {
+    el.trimStartControls.style.opacity = startActive ? '1' : '0.4';
+    el.trimStartControls.style.pointerEvents = startActive ? 'auto' : 'none';
+  }
+  if (el.trimEndControls) {
+    el.trimEndControls.style.opacity = endActive ? '1' : '0.4';
+    el.trimEndControls.style.pointerEvents = endActive ? 'auto' : 'none';
+  }
+}
+
+function onTrimToggleChange() {
+  updateTrimUIState();
+  updateTrimSummary();
+}
+
+function onTrimInputChange() {
+  const danceDur = state.danceDuration || (el.previewVideo && el.previewVideo.duration ? el.previewVideo.duration : 60);
+  let s = parseFloat(el.trimStartInput ? el.trimStartInput.value : 0) || 0;
+  let e = parseFloat(el.trimEndInput ? el.trimEndInput.value : danceDur) || danceDur;
+
+  s = Math.max(0, Math.min(danceDur - 1, s));
+  e = Math.max(s + 1, Math.min(danceDur, e));
+
+  state.trimStartSec = Math.round(s * 10) / 10;
+  state.trimEndSec = Math.round(e * 10) / 10;
+
+  if (el.trimStartInput) el.trimStartInput.value = state.trimStartSec.toFixed(1);
+  if (el.trimEndInput) el.trimEndInput.value = state.trimEndSec.toFixed(1);
+
+  updateTrimSummary();
+}
+
+function adjustTrimStart(delta) {
+  const danceDur = state.danceDuration || (el.previewVideo && el.previewVideo.duration ? el.previewVideo.duration : 60);
+  let s = state.trimStartSec + delta;
+  s = Math.max(0, Math.min(state.trimEndSec - 0.5, s));
+  state.trimStartSec = Math.round(s * 10) / 10;
+  if (el.trimStartInput) el.trimStartInput.value = state.trimStartSec.toFixed(1);
+  if (el.trimStartToggle) el.trimStartToggle.checked = true;
+  updateTrimUIState();
+  updateTrimSummary();
+}
+
+function adjustTrimEnd(delta) {
+  const danceDur = state.danceDuration || (el.previewVideo && el.previewVideo.duration ? el.previewVideo.duration : 60);
+  let e = state.trimEndSec + delta;
+  e = Math.max(state.trimStartSec + 0.5, Math.min(danceDur, e));
+  state.trimEndSec = Math.round(e * 10) / 10;
+  if (el.trimEndInput) el.trimEndInput.value = state.trimEndSec.toFixed(1);
+  if (el.trimEndToggle) el.trimEndToggle.checked = true;
+  updateTrimUIState();
+  updateTrimSummary();
+}
+
+function setTrimStartPreset(type) {
+  const offSec = Math.max(0, state.currentOffsetMs / 1000);
+  if (type === 'auto') {
+    state.trimStartSec = Math.round(offSec * 10) / 10;
+    if (el.trimStartToggle) el.trimStartToggle.checked = true;
+  } else if (type === 'zero') {
+    state.trimStartSec = 0.0;
+    if (el.trimStartToggle) el.trimStartToggle.checked = false;
+  }
+  if (el.trimStartInput) el.trimStartInput.value = state.trimStartSec.toFixed(1);
+  updateTrimUIState();
+  updateTrimSummary();
+}
+
+function setTrimEndPreset(type) {
+  const danceDur = state.danceDuration || (el.previewVideo && el.previewVideo.duration ? el.previewVideo.duration : 60);
+  const origDur = state.originalDuration || (state.bufferGoc ? state.bufferGoc.duration : 60);
+  const offSec = state.currentOffsetMs / 1000;
+  if (type === 'auto') {
+    const musicEnd = Math.min(danceDur, Math.max(1, offSec + origDur));
+    state.trimEndSec = Math.round(musicEnd * 10) / 10;
+    if (el.trimEndToggle) el.trimEndToggle.checked = true;
+  } else if (type === 'full') {
+    state.trimEndSec = Math.round(danceDur * 10) / 10;
+    if (el.trimEndToggle) el.trimEndToggle.checked = false;
+  }
+  if (el.trimEndInput) el.trimEndInput.value = state.trimEndSec.toFixed(1);
+  updateTrimUIState();
+  updateTrimSummary();
+}
+
+function resetTrimToAuto() {
+  initTrimControls();
+}
+
+function updateTrimSummary() {
+  const danceDur = state.danceDuration || (el.previewVideo && el.previewVideo.duration ? el.previewVideo.duration : 60);
+  const startActive = el.trimStartToggle && el.trimStartToggle.checked;
+  const endActive = el.trimEndToggle && el.trimEndToggle.checked;
+
+  const actualStart = startActive ? state.trimStartSec : 0;
+  const actualEnd = endActive ? state.trimEndSec : danceDur;
+  const netDuration = Math.max(0, actualEnd - actualStart);
+
+  if (el.trimSummaryDur) {
+    el.trimSummaryDur.textContent = `${netDuration.toFixed(1)}s (từ ${actualStart.toFixed(1)}s ➔ ${actualEnd.toFixed(1)}s)`;
+  }
+
+  if (el.trimSummaryBadges) {
+    let badges = [];
+    if (startActive && actualStart > 0.1) {
+      badges.push(`<span class="trim-badge">✂️ Đã cắt ${actualStart.toFixed(1)}s chờ đầu</span>`);
+    } else {
+      badges.push(`<span class="trim-badge" style="color:var(--text-dim);border-color:var(--border-subtle)">🎬 Giữ từ 0s</span>`);
+    }
+
+    const cutTail = danceDur - actualEnd;
+    if (endActive && cutTail > 0.1) {
+      badges.push(`<span class="trim-badge">✂️ Đã cắt ${cutTail.toFixed(1)}s đuôi</span>`);
+    } else {
+      badges.push(`<span class="trim-badge" style="color:var(--text-dim);border-color:var(--border-subtle)">🎬 Giữ đến hết video</span>`);
+    }
+    el.trimSummaryBadges.innerHTML = badges.join(' ');
+  }
+}
+
+function previewTrimmedRange() {
+  const danceDur = state.danceDuration || (el.previewVideo && el.previewVideo.duration ? el.previewVideo.duration : 60);
+  const startActive = el.trimStartToggle && el.trimStartToggle.checked;
+  const endActive = el.trimEndToggle && el.trimEndToggle.checked;
+
+  const actualStart = startActive ? state.trimStartSec : 0;
+  const actualEnd = endActive ? state.trimEndSec : danceDur;
+
+  seekPreview(actualStart);
+  if (!state.isPlaying) startPreview();
+
+  if (state.trimPreviewTimer) clearTimeout(state.trimPreviewTimer);
+  const durMs = (actualEnd - actualStart) * 1000;
+  state.trimPreviewTimer = setTimeout(() => {
+    if (state.isPlaying) stopPreview();
+  }, Math.max(500, durMs));
+}
+
+function selectResolutionMode(mode) {
+  state.resolutionMode = mode;
+  if (el.resCardTiktok) el.resCardTiktok.classList.toggle('active', mode === 'tiktok_1080p');
+  if (el.resCardOriginal) el.resCardOriginal.classList.toggle('active', mode === 'original');
+  const radio = document.querySelector(`input[name="resMode"][value="${mode}"]`);
+  if (radio) radio.checked = true;
+}
+
+// ==========================================
 // 7. STEP 3: EXPORT PIPELINE
 // ==========================================
 function goToStep3() {
@@ -543,32 +767,60 @@ function goToStep3() {
 }
 
 async function runExportPipeline() {
-  el.exportProgressBox.classList.remove('hidden');
-  el.exportResultBox.classList.add('hidden');
-  const sign = state.currentOffsetMs > 0 ? '+' : '';
-  el.exportStatusTitle.textContent = 'Đang ghép âm thanh vào video...';
-  el.exportStatusDesc.textContent = 'Độ lệch áp dụng: ' + sign + state.currentOffsetMs + ' ms. Vui lòng chờ vài giây...';
+  if (el.exportProgressBox) el.exportProgressBox.classList.remove('hidden');
+  if (el.exportResultBox) el.exportResultBox.classList.add('hidden');
+  if (el.exportRetry) el.exportRetry.classList.add('hidden');
 
-  let pct = 15;
-  el.progressBarFill.style.width = pct + '%';
-  el.progressPctText.textContent = pct + '%';
+  const sign = state.currentOffsetMs > 0 ? '+' : '';
+  const isTiktokMode = (state.resolutionMode === 'tiktok_1080p');
+  
+  if (el.exportStatusTitle) {
+    el.exportStatusTitle.textContent = isTiktokMode 
+      ? 'Đang ghép nhạc & nâng nét 1080p TikTok Ready...' 
+      : 'Đang ghép âm thanh chất lượng cao vào video...';
+  }
+  if (el.exportStatusDesc) {
+    el.exportStatusDesc.textContent = `Độ lệch: ${sign}${state.currentOffsetMs} ms. Đang xử lý...`;
+  }
+
+  let pct = 10;
+  if (el.progressBarFill) el.progressBarFill.style.width = pct + '%';
+  if (el.progressPctText) el.progressPctText.textContent = pct + '%';
 
   const timer = setInterval(() => {
-    if (pct < 90) {
-      pct += 5;
-      el.progressBarFill.style.width = pct + '%';
-      el.progressPctText.textContent = pct + '%';
+    if (pct < 92) {
+      pct += (pct < 60 ? 4 : 2);
+      if (el.progressBarFill) el.progressBarFill.style.width = pct + '%';
+      if (el.progressPctText) el.progressPctText.textContent = pct + '%';
+      
+      if (pct > 30 && pct < 65 && el.exportStatusDesc) {
+        el.exportStatusDesc.textContent = 'Đang căn nhịp chuẩn từng mili-giây và loại bỏ tạp âm phòng...';
+      } else if (pct >= 65 && el.exportStatusDesc) {
+        el.exportStatusDesc.textContent = isTiktokMode
+          ? 'Đang lọc nét viền Unsharp & scale 1080x1920 chuẩn TikTok...'
+          : 'Đang kết xuất luồng video... Sắp hoàn tất!';
+      }
     }
-  }, 400);
+  }, 600);
 
   try {
     if (!state.sessionId) throw new Error('Chưa có phiên làm việc. Hãy quay lại bước 1 và chọn lại video.');
+    
+    const startActive = el.trimStartToggle && el.trimStartToggle.checked;
+    const endActive = el.trimEndToggle && el.trimEndToggle.checked;
+    const trimStartVal = startActive ? state.trimStartSec : 0.0;
+
     const formData = new FormData();
     formData.append('sessionId', state.sessionId);
     formData.append('offsetMs', state.currentOffsetMs);
-    formData.append('musicVol', el.musicVolume.value);
-    formData.append('roomVol', el.roomVolume.value);
-    formData.append('trimLeadIn', el.trimLeadIn && el.trimLeadIn.checked ? '1' : '0');
+    formData.append('musicVol', el.musicVolume ? el.musicVolume.value : 100);
+    formData.append('roomVol', el.roomVolume ? el.roomVolume.value : 0);
+    formData.append('trimLeadIn', startActive ? '1' : '0');
+    formData.append('trimStart', trimStartVal);
+    if (endActive) {
+      formData.append('trimEnd', state.trimEndSec);
+    }
+    formData.append('resolutionMode', state.resolutionMode || 'tiktok_1080p');
 
     const response = await fetch('/api/render', { method: 'POST', body: formData });
     clearInterval(timer);
@@ -580,18 +832,19 @@ async function runExportPipeline() {
     }
 
     const data = await response.json();
-    el.progressBarFill.style.width = '100%';
-    el.progressPctText.textContent = '100%';
-    setTimeout(() => onExportComplete(data.downloadUrl, data.filename), 300);
+    if (el.progressBarFill) el.progressBarFill.style.width = '100%';
+    if (el.progressPctText) el.progressPctText.textContent = '100%';
+    if (el.exportStatusDesc) el.exportStatusDesc.textContent = 'Xuất video hoàn tất thành công!';
+    setTimeout(() => onExportComplete(data.downloadUrl, data.filename), 400);
 
   } catch (err) {
     clearInterval(timer);
     console.error('Lỗi xuất video:', err);
-    el.exportStatusTitle.textContent = '⚠️ Không xuất được video';
-    el.exportStatusDesc.textContent = String(err.message || err) + ' — Bấm "Ghép một video khác" để thử lại.';
-    el.exportResultBox.classList.add('hidden');
-    el.progressBarFill.style.width = '0%';
-    el.progressPctText.textContent = '';
+    if (el.exportStatusTitle) el.exportStatusTitle.textContent = '⚠️ Không xuất được video';
+    if (el.exportStatusDesc) el.exportStatusDesc.textContent = String(err.message || err) + ' — Bấm nút bên dưới để thử lại.';
+    if (el.exportResultBox) el.exportResultBox.classList.add('hidden');
+    if (el.progressBarFill) el.progressBarFill.style.width = '0%';
+    if (el.progressPctText) el.progressPctText.textContent = '';
     if (el.exportRetry) el.exportRetry.classList.remove('hidden');
   }
 }

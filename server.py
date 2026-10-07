@@ -4,6 +4,7 @@ import uuid
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +34,17 @@ async def block_private_paths(request: Request, call_next):
     if request.url.path.startswith(BLOCKED_PREFIXES):
         return JSONResponse({"detail": "Not found"}, status_code=404)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    p = request.url.path
+    if p.startswith("/api") or p.endswith((".js", ".css", ".html")) or p == "/":
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 
 def cleanup_old_files():
@@ -100,11 +112,16 @@ async def render_video(
     musicVol: int = Form(100),
     roomVol: int = Form(0),
     trimLeadIn: int = Form(1),
+    trimStart: Optional[float] = Form(None),
+    trimEnd: Optional[float] = Form(None),
+    resolutionMode: str = Form("original"),  # "original" | "tiktok_1080p"
 ):
     """
-    offsetMs > 0 : music starts offsetMs AFTER the beginning of the dance video.
-    offsetMs < 0 : music is trimmed by |offsetMs| from its beginning.
-    trimLeadIn   : when offsetMs > 0, cut the dance video's lead-in so the output starts when the music starts.
+    Render synced video with optional lead-in & outro trim and resolution mode.
+    offsetMs > 0 : music starts offsetMs AFTER beginning of uncut dance video.
+    trimStart    : start cut timestamp (seconds) in dance video timeline.
+    trimEnd      : end cut timestamp (seconds) in dance video timeline.
+    resolutionMode: 'tiktok_1080p' (Lanczos upscale + unsharp filter) or 'original'.
     """
     if not sessionId.isalnum():
         raise HTTPException(status_code=400, detail="sessionId không hợp lệ")
@@ -112,7 +129,7 @@ async def render_video(
     goc = next(iter(sdir.glob("goc.*")), None) if sdir.exists() else None
     nhay = next(iter(sdir.glob("nhay.*")), None) if sdir.exists() else None
     if not goc or not nhay:
-        raise HTTPException(status_code=404, detail="Phiên làm việc đã hết hạn. Hãy chọn lại video ở bước 1.")
+        raise HTTPException(status_code=404, detail="Phiên làm việc đã hết hạn hoặc file đã bị xóa. Hãy quay lại bước 1 và chọn lại video.")
 
     off = offsetMs / 1000.0
     vm = max(0, min(150, musicVol)) / 100.0
@@ -120,31 +137,70 @@ async def render_video(
     out_name = f"StyleFit_Synced_{sessionId}_{int(time.time())}.mp4"
     out_path = EXPORTS_DIR / out_name
 
-    trim_video = bool(trimLeadIn) and off > 0
-    args = []
-    if trim_video:
-        # Output starts exactly when the music starts: cut the dance video's lead-in (accurate seek, re-encode video).
-        args += ["-ss", f"{off:.3f}", "-i", str(nhay), "-i", str(goc)]
-        music_chain = f"[1:a]volume={vm}"
-        video_opts = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
-    elif off >= 0:
-        args += ["-i", str(nhay), "-i", str(goc)]
-        ms = int(round(off * 1000))
-        music_chain = f"[1:a]adelay={ms}|{ms},volume={vm}"
-        video_opts = ["-c:v", "copy"]
+    # Determine start cut (in dance video timeline)
+    if trimStart is not None:
+        trim_start = max(0.0, float(trimStart))
+    elif bool(trimLeadIn) and off > 0:
+        trim_start = off
     else:
-        args += ["-i", str(nhay), "-ss", f"{abs(off):.3f}", "-i", str(goc)]
-        music_chain = f"[1:a]volume={vm}"
-        video_opts = ["-c:v", "copy"]
+        trim_start = 0.0
 
+    # Determine end cut & duration
+    trim_end = float(trimEnd) if trimEnd is not None and float(trimEnd) > trim_start else None
+    duration = (trim_end - trim_start) if trim_end is not None else None
+
+    # Audio alignment math:
+    # In uncut dance video, original music position is (t - off).
+    # At trimmed dance start (t = trim_start), original music position is (trim_start - off).
+    music_seek = trim_start - off
+    args = []
+
+    # Dance video input
+    if trim_start > 0:
+        args += ["-ss", f"{trim_start:.3f}"]
+    if duration is not None:
+        args += ["-t", f"{duration:.3f}"]
+    args += ["-i", str(nhay)]
+
+    # Music input
+    if music_seek >= 0:
+        if music_seek > 0.001:
+            args += ["-ss", f"{music_seek:.3f}"]
+        if duration is not None:
+            args += ["-t", f"{duration:.3f}"]
+        args += ["-i", str(goc)]
+        music_chain = f"[1:a]volume={vm}"
+    else:
+        delay_ms = int(round(abs(music_seek) * 1000))
+        if duration is not None:
+            args += ["-t", f"{duration:.3f}"]
+        args += ["-i", str(goc)]
+        music_chain = f"[1:a]adelay={delay_ms}|{delay_ms},volume={vm}"
+
+    # Audio mixing filter
     if vr > 0:
         fc = (f"{music_chain}[m];[0:a]volume={vr}[r];"
-              f"[m][r]amix=inputs=2:duration=longest:normalize=0[a]")
+              f"[m][r]amix=inputs=2:duration=first:normalize=0[a]")
     else:
         fc = f"{music_chain}[a]"
 
-    args += ["-filter_complex", fc, "-map", "0:v:0", "-map", "[a]"] + video_opts + [
-        "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(out_path)]
+    # Video filters & encoding
+    is_trimmed = (trim_start > 0) or (duration is not None)
+    if resolutionMode == "tiktok_1080p":
+        # Professional 1080x1920 portrait upscale with Lanczos filter and unsharp sharpening
+        vf = "scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,unsharp=5:5:0.8:3:3:0.4"
+        video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p"]
+    elif is_trimmed:
+        # Re-encode is required for frame-accurate sub-second trimming
+        video_opts = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
+    else:
+        # Untrimmed stream copy
+        video_opts = ["-c:v", "copy"]
+
+    args += ["-filter_complex", fc, "-map", "0:v:0", "-map", "[a]"] + video_opts
+    if duration is not None:
+        args += ["-t", f"{duration:.3f}"]
+    args += ["-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out_path)]
 
     dur = run_ffmpeg(args)
     return {
@@ -152,7 +208,10 @@ async def render_video(
         "renderTimeSec": round(dur, 2),
         "fileSize": os.path.getsize(out_path),
         "offsetUsed": offsetMs,
-        "trimmedLeadIn": trim_video,
+        "trimStartUsed": round(trim_start, 3),
+        "trimEndUsed": round(trim_end, 3) if trim_end is not None else None,
+        "durationSec": round(duration, 2) if duration is not None else None,
+        "resolutionMode": resolutionMode,
         "downloadUrl": f"/exports/{out_name}",
         "filename": out_name,
     }
