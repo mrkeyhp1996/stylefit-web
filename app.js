@@ -92,6 +92,10 @@ const el = {
   // Resolution mode elements
   resCardTiktok: document.getElementById('resCardTiktok'),
   resCardOriginal: document.getElementById('resCardOriginal'),
+  detectedVideoBadge: document.getElementById('detectedVideoBadge'),
+  resTitleOriginal: document.getElementById('resTitleOriginal'),
+  resDescOriginal: document.getElementById('resDescOriginal'),
+  badgeOriginalMaster: document.getElementById('badgeOriginalMaster'),
 
   // Step 3 Export elements
   exportProgressBox: document.getElementById('exportProgressBox'),
@@ -278,6 +282,25 @@ async function startAnalysis() {
 
     // Initialize smart auto trimming for lead-in and outro
     initTrimControls();
+
+    // Handle detected video resolution & fps from phone camera
+    if (r.videoMeta) {
+      state.videoMeta = r.videoMeta;
+      if (el.detectedVideoBadge) {
+        el.detectedVideoBadge.style.display = 'inline-flex';
+        el.detectedVideoBadge.textContent = `📱 Camera: ${r.videoMeta.label}`;
+      }
+      if (r.videoMeta.is4k) {
+        if (el.resTitleOriginal) el.resTitleOriginal.textContent = `Giữ Trọn 4K Ultra HD (${r.videoMeta.fps}fps) Gốc`;
+        if (el.resDescOriginal) {
+          el.resDescOriginal.textContent = `Giữ trọn vẹn 100% độ phân giải 4K đỉnh cao của iPhone (${r.videoMeta.width}x${r.videoMeta.height} · ${r.videoMeta.fps}fps). Không bị hạ bất kỳ pixel nào.`;
+        }
+        selectResolutionMode('original');
+      } else if (r.videoMeta.is1080p) {
+        if (el.resTitleOriginal) el.resTitleOriginal.textContent = `Giữ Nguyên Full HD 1080p (${r.videoMeta.fps}fps)`;
+        selectResolutionMode('original');
+      }
+    }
 
     const secs = (Math.abs(state.currentOffsetMs) / 1000).toFixed(2);
     const where = state.currentOffsetMs >= 0

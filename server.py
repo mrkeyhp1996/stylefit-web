@@ -69,6 +69,51 @@ def run_ffmpeg(args):
     return time.time() - t0
 
 
+import json
+
+
+def probe_video(path: Path):
+    cmd = [
+        "ffprobe", "-v", "error", "-select_streams", "v:0",
+        "-show_entries", "stream=width,height,r_frame_rate:stream_side_data=rotation:stream_tags=rotate",
+        "-of", "json", str(path)
+    ]
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, creationflags=LOW_PRIORITY)
+        data = json.loads(res.stdout)
+        st = data.get("streams", [{}])[0]
+        w = st.get("width", 0)
+        h = st.get("height", 0)
+        rot = 0
+        if "side_data_list" in st:
+            for sd in st["side_data_list"]:
+                if "rotation" in sd:
+                    rot = abs(int(sd["rotation"]))
+        if rot == 0 and "tags" in st and "rotate" in st["tags"]:
+            rot = abs(int(st["tags"]["rotate"]))
+        if rot in (90, 270):
+            w, h = h, w
+
+        fps_str = st.get("r_frame_rate", "30/1")
+        try:
+            num, den = map(int, fps_str.split("/"))
+            fps = round(num / den) if den else 30
+        except Exception:
+            fps = 30
+
+        is_4k = (w >= 3840 or h >= 3840 or (w >= 2160 and h >= 3840) or (w >= 3840 and h >= 2160))
+        is_1080p = (w >= 1080 and h >= 1920) or (w >= 1920 and h >= 1080)
+        if is_4k:
+            label = f"4K Ultra HD ({w}x{h}) · {fps}fps"
+        elif is_1080p:
+            label = f"Full HD 1080p ({w}x{h}) · {fps}fps"
+        else:
+            label = f"HD 720p ({w}x{h}) · {fps}fps"
+        return {"width": w, "height": h, "fps": fps, "is4k": is_4k, "is1080p": is_1080p, "label": label}
+    except Exception:
+        return {"width": 1080, "height": 1920, "fps": 30, "is4k": False, "is1080p": True, "label": "Full HD 1080p"}
+
+
 async def save_upload(up: UploadFile, dest: Path):
     with open(dest, "wb") as f:
         while chunk := await up.read(1024 * 1024):
@@ -94,6 +139,8 @@ async def analyze(fileGoc: UploadFile = File(...), fileNhay: UploadFile = File(.
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
 
+    video_meta = probe_video(nhay_path)
+
     return {
         "sessionId": sid,
         "offsetMs": r["offset_ms"],
@@ -102,6 +149,7 @@ async def analyze(fileGoc: UploadFile = File(...), fileNhay: UploadFile = File(.
         "driftMs": r["drift_ms"],
         "danceDuration": r["dance_duration"],
         "originalDuration": r["original_duration"],
+        "videoMeta": video_meta,
     }
 
 

@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=2.6">
+  <link rel="stylesheet" href="style.css?v=2.7">
 </head>
 <body>
 
@@ -343,34 +343,38 @@
         <!-- Resolution & Quality Card -->
         <div class="resolution-card">
           <div class="resolution-header">
-            <h4>📐 CHẤT LƯỢNG & ĐỘ PHÂN GIẢI XUẤT VIDEO</h4>
-            <span class="res-subtext">Tối ưu cho đăng TikTok, Instagram Reels & YouTube Shorts</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <h4>📐 CHẤT LƯỢNG & ĐỘ PHÂN GIẢI XUẤT VIDEO</h4>
+              <span id="detectedVideoBadge" class="trim-badge" style="display:none;background:rgba(0,229,255,0.15);color:var(--accent-cyan);border-color:rgba(0,229,255,0.3);">📱 Đang nhận diện video...</span>
+            </div>
+            <span class="res-subtext">Tùy chọn độ phân giải phù hợp cho mục đích sử dụng của bạn</span>
           </div>
 
           <div class="resolution-grid">
-            <label class="res-option-card active" id="resCardTiktok" onclick="selectResolutionMode('tiktok_1080p')">
-              <input type="radio" name="resMode" value="tiktok_1080p" checked>
+            <label class="res-option-card active" id="resCardOriginal" onclick="selectResolutionMode('original')">
+              <input type="radio" name="resMode" value="original" checked>
               <div class="res-card-body">
                 <div class="res-card-title-row">
-                  <span class="res-icon">✨</span>
-                  <span class="res-title">Nâng Nét 1080p TikTok Ready</span>
-                  <span class="badge-recommended">⭐ KHUYÊN DÙNG</span>
+                  <span class="res-icon">🌟</span>
+                  <span class="res-title" id="resTitleOriginal">Giữ Trọn 4K / Độ Phân Giải Gốc</span>
+                  <span class="badge-recommended" id="badgeOriginalMaster" style="background:linear-gradient(135deg, #00E5FF 0%, #0091EA 100%);color:#000;">MASTER QUALITY</span>
                 </div>
-                <p class="res-desc">
-                  Scale chuẩn 1080x1920 (9:16), lọc nét viền Unsharp và bitrate studio cao. Đăng TikTok/Reels nét căng, không bị vỡ hạt mờ hình.
+                <p class="res-desc" id="resDescOriginal">
+                  Giữ 100% độ nét đỉnh cao từ camera iPhone (4K / 1080p, 60fps). Không bị hạ bất kỳ pixel nào, lưu trữ và chiếu màn hình lớn nét tuyệt đối.
                 </p>
               </div>
             </label>
 
-            <label class="res-option-card" id="resCardOriginal" onclick="selectResolutionMode('original')">
-              <input type="radio" name="resMode" value="original">
+            <label class="res-option-card" id="resCardTiktok" onclick="selectResolutionMode('tiktok_1080p')">
+              <input type="radio" name="resMode" value="tiktok_1080p">
               <div class="res-card-body">
                 <div class="res-card-title-row">
-                  <span class="res-icon">🚀</span>
-                  <span class="res-title">Giữ Nguyên Gốc</span>
+                  <span class="res-icon">📱</span>
+                  <span class="res-title">Tối Ưu 1080p TikTok Ready</span>
+                  <span class="badge-recommended" style="background:var(--primary);color:#000;">CHO TIKTOK / REELS</span>
                 </div>
                 <p class="res-desc">
-                  Giữ 100% độ nét camera của máy quay. Tốc độ xuất video siêu nhanh.
+                  Chuẩn hóa 1080x1920 (9:16), lọc nét viền Unsharp. Vì TikTok chỉ phát tối đa 1080p trên điện thoại, xuất bản này giúp file nhẹ hơn và tránh bị TikTok tự nén ẩu làm vỡ hạt.
                 </p>
               </div>
             </label>
@@ -464,7 +468,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="sync-engine.js?v=2.6"></script>
-  <script src="app.js?v=2.6"></script>
+  <script src="sync-engine.js?v=2.7"></script>
+  <script src="app.js?v=2.7"></script>
 </body>
 </html>
