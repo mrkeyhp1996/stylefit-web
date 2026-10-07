@@ -1,4 +1,7 @@
-# StyleFit Web & Music Sync Tool
-*.log
+﻿*.log
 .DS_Store
 node_modules/
+__pycache__/
+uploads/
+exports/
+*.mp4

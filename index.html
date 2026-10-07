@@ -245,6 +245,11 @@
                   <input type="range" id="roomVolume" min="0" max="40" value="0" oninput="updateAudioVolumes()">
                   <span id="roomVolText" class="val-text">0%</span>
                 </div>
+                <div class="option-row">
+                  <label for="trimLeadIn">Cắt bỏ đoạn thừa trước khi nhạc bắt đầu:</label>
+                  <input type="checkbox" id="trimLeadIn" checked style="width:20px;height:20px;accent-color:#FE7409;">
+                  <span class="val-text" style="width:auto;font-weight:500;color:var(--text-muted);font-size:12px;">(video xuất ra bắt đầu đúng lúc vào nhạc)</span>
+                </div>
               </div>
 
               <div class="step2-cta">
@@ -273,6 +278,7 @@
               <div class="progress-bar-fill" id="progressBarFill" style="width: 15%"></div>
             </div>
             <span class="progress-pct" id="progressPctText">15%</span>
+            <button id="exportRetry" class="btn-secondary hidden" style="margin-top:16px" onclick="resetAll()">🔄 Thử lại từ đầu</button>
           </div>
 
           <!-- Result Area (Appears when ready) -->

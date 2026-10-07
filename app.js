@@ -67,6 +67,8 @@ const el = {
   roomVolume: document.getElementById('roomVolume'),
   musicVolText: document.getElementById('musicVolText'),
   roomVolText: document.getElementById('roomVolText'),
+  trimLeadIn: document.getElementById('trimLeadIn'),
+  exportRetry: document.getElementById('exportRetry'),
 
   exportProgressBox: document.getElementById('exportProgressBox'),
   exportResultBox: document.getElementById('exportResultBox'),
@@ -206,50 +208,73 @@ async function startAnalysis() {
   el.confidenceBadge.className = 'status-badge';
 
   try {
-    // If not decoded yet, decode now
+    // Decode audio locally only for waveform + in-browser preview
     if (!state.bufferGoc) state.bufferGoc = await state.syncEngine.decodeFile(state.fileGoc);
     if (!state.bufferNhay) state.bufferNhay = await state.syncEngine.decodeFile(state.fileNhay);
+    state.gocWave = state.syncEngine.extractWaveformPeaks(state.bufferGoc, 500);
+    state.nhayWave = state.syncEngine.extractWaveformPeaks(state.bufferNhay, 500);
 
-    const result = await state.syncEngine.analyzeSync(state.bufferGoc, state.bufferNhay);
-    
-    // For our verified video test, optimal offset is around -220ms
-    // If automatic algorithm lands within range, use it
-    let offset = result.offsetMs;
-    // Calibrate offset: if detection lands near 200-300ms, snap to confirmed 260ms sweetspot
-    if (Math.abs(offset) > 10000 || Math.abs(offset) < 50) {
-      offset = 260; 
-    } else {
-      offset = 260; // Confirmed by HLV inspection
+    // Real detection runs on the server over the WHOLE video (any lead-in length)
+    el.statusDesc.textContent = 'Đang tải video lên máy chủ và dò toàn bộ video để tìm điểm nhạc bắt đầu...';
+    const fd = new FormData();
+    fd.append('fileGoc', state.fileGoc);
+    fd.append('fileNhay', state.fileNhay);
+    const resp = await fetch('/api/analyze', { method: 'POST', body: fd });
+    if (!resp.ok) {
+      let msg = resp.statusText;
+      try { msg = (await resp.json()).detail || msg; } catch (e) {}
+      throw new Error(msg);
     }
+    const r = await resp.json();
 
-    state.autoOffsetMs = offset;
-    state.currentOffsetMs = offset;
-    state.confidence = 96;
-    state.gocWave = result.gocWave;
-    state.nhayWave = result.nhayWave;
-
-    // Update UI
+    state.sessionId = r.sessionId;
+    state.autoOffsetMs = Math.round(r.offsetMs);
+    state.currentOffsetMs = state.autoOffsetMs;
+    state.confidence = r.confidenceLevel;
     el.offsetInput.value = state.currentOffsetMs;
-    el.statusIcon.textContent = '🟢';
-    el.statusTitle.textContent = `Đã đồng bộ chuẩn nhịp (+${state.currentOffsetMs} ms)`;
-    el.statusDesc.textContent = `Nhạc gốc đã khớp chính xác với bước nhảy theo chuẩn HLV StyleFit.`;
-    el.confidenceBadge.textContent = `Chuẩn HLV: 96%`;
-    el.confidenceBadge.className = 'status-badge success';
+
+    const secs = (Math.abs(state.currentOffsetMs) / 1000).toFixed(2);
+    const where = state.currentOffsetMs >= 0
+      ? `Nhạc bắt đầu ở giây thứ ${secs} của video bạn quay`
+      : `Video gốc có ${secs}s đầu mà video của bạn không có`;
+
+    if (r.confidenceLevel === 'high') {
+      el.statusIcon.textContent = '🟢';
+      el.statusTitle.textContent = `Đã tìm thấy điểm khớp: ${where}`;
+      el.statusDesc.textContent = 'Hãy bấm "Nghe thử" để kiểm tra bằng tai. Có thể tinh chỉnh ±10ms nếu cần.';
+      el.confidenceBadge.textContent = 'Độ tin cậy: Cao';
+      el.confidenceBadge.className = 'status-badge success';
+    } else if (r.confidenceLevel === 'medium') {
+      el.statusIcon.textContent = '🟡';
+      el.statusTitle.textContent = `Có thể khớp: ${where}`;
+      el.statusDesc.textContent = 'Độ tin cậy trung bình (tiếng loa khá nhỏ/ồn). Hãy nghe thử kỹ và tinh chỉnh bằng các nút ±.';
+      el.confidenceBadge.textContent = 'Độ tin cậy: Vừa';
+      el.confidenceBadge.className = 'status-badge';
+    } else {
+      el.statusIcon.textContent = '🔴';
+      el.statusTitle.textContent = 'Chưa chắc chắn — cần căn tay';
+      el.statusDesc.textContent = 'Video nhảy có thể không thu được tiếng nhạc, hoặc 2 video khác bài. Hãy nghe thử và căn bằng các nút ±.';
+      el.confidenceBadge.textContent = 'Độ tin cậy: Thấp';
+      el.confidenceBadge.className = 'status-badge';
+    }
+    if (r.driftMs !== null && Math.abs(r.driftMs) > 80) {
+      el.statusDesc.textContent += ` ⚠️ Nhạc trong video của bạn lệch dần ${Math.round(r.driftMs)}ms từ đầu đến cuối (có thể là bản nhạc nhanh/chậm hơn bản gốc).`;
+    }
 
     renderWaveforms();
     setupPreviewDurations();
 
   } catch (err) {
     console.error('Lỗi phân tích sync:', err);
-    // Graceful fallback to confirmed 260ms offset
-    state.autoOffsetMs = 260;
-    state.currentOffsetMs = 260;
-    el.offsetInput.value = 260;
-    el.statusIcon.textContent = '🟢';
-    el.statusTitle.textContent = 'Đã căn nhịp chuẩn (+260 ms)';
-    el.statusDesc.textContent = 'Đã đặt độ lệch chuẩn 260ms. Bạn có thể bấm các nút ±10ms, ±50ms để tinh chỉnh thêm nếu muốn.';
-    el.confidenceBadge.textContent = 'Chuẩn HLV';
-    el.confidenceBadge.className = 'status-badge success';
+    state.sessionId = null;
+    state.autoOffsetMs = 0;
+    state.currentOffsetMs = 0;
+    el.offsetInput.value = 0;
+    el.statusIcon.textContent = '🔴';
+    el.statusTitle.textContent = 'Không phân tích được tự động';
+    el.statusDesc.textContent = String(err.message || err) + ' — Hãy quay lại bước 1 và thử lại.';
+    el.confidenceBadge.textContent = 'Lỗi';
+    el.confidenceBadge.className = 'status-badge';
     renderWaveforms();
     setupPreviewDurations();
   }
@@ -293,33 +318,34 @@ function renderWaveforms() {
   ctx.lineTo(w, h / 2);
   ctx.stroke();
 
-  // Wave 1: Original Music (Orange) - Top half
+  // Shared timeline: dance video starts at t=0, original music starts at t=offset.
+  const nhayDur = state.bufferNhay ? state.bufferNhay.duration : 60;
+  const gocDur = state.bufferGoc ? state.bufferGoc.duration : 60;
+  const offSec = state.currentOffsetMs / 1000;
+  const t0 = Math.min(0, offSec);
+  const t1 = Math.max(nhayDur, offSec + gocDur);
+  state.timeline = { t0, t1 };
+  const px = (t) => ((t - t0) / (t1 - t0)) * w;
+
+  // Wave 1: Original Music (Orange) - Top half, starts at t = offset
   if (state.gocWave) {
     ctx.fillStyle = '#FE7409';
     const bins = state.gocWave.length;
-    const barWidth = w / bins;
+    const barWidth = Math.max(1, (gocDur / (t1 - t0)) * w / bins);
     for (let i = 0; i < bins; i++) {
       const barH = state.gocWave[i] * (h * 0.42);
-      ctx.fillRect(i * barWidth, (h / 2) - barH, Math.max(1, barWidth - 0.5), barH);
+      ctx.fillRect(px(offSec + (i / bins) * gocDur), (h / 2) - barH, Math.max(1, barWidth - 0.5), barH);
     }
   }
 
-  // Wave 2: Dance Video (Cyan) - Bottom half with offset shift
+  // Wave 2: Dance video audio (Cyan) - Bottom half, starts at t = 0
   if (state.nhayWave) {
     ctx.fillStyle = '#00E5FF';
     const bins = state.nhayWave.length;
-    const barWidth = w / bins;
-    
-    // Pixel shift based on currentOffsetMs
-    const totalSec = state.bufferNhay ? state.bufferNhay.duration : 60;
-    const shiftPx = ((state.currentOffsetMs / 1000) / totalSec) * w;
-
+    const barWidth = Math.max(1, (nhayDur / (t1 - t0)) * w / bins);
     for (let i = 0; i < bins; i++) {
       const barH = state.nhayWave[i] * (h * 0.42);
-      const posX = (i * barWidth) + shiftPx;
-      if (posX >= 0 && posX < w) {
-        ctx.fillRect(posX, h / 2, Math.max(1, barWidth - 0.5), barH);
-      }
+      ctx.fillRect(px((i / bins) * nhayDur), h / 2, Math.max(1, barWidth - 0.5), barH);
     }
   }
 }
@@ -374,10 +400,11 @@ function setupPreviewDurations() {
 }
 
 function updatePlayheadPosition() {
-  if (!el.previewVideo.duration) return;
-  const pct = (el.previewVideo.currentTime / el.previewVideo.duration) * 100;
+  if (!el.previewVideo.duration || !state.timeline) return;
+  const { t0, t1 } = state.timeline;
+  const pct = ((el.previewVideo.currentTime - t0) / (t1 - t0)) * 100;
   el.playhead.style.display = 'block';
-  el.playhead.style.left = pct + '%';
+  el.playhead.style.left = Math.max(0, Math.min(100, pct)) + '%';
 }
 
 function togglePlayPreview() {
@@ -421,11 +448,10 @@ function startAudioPreview(videoCurrentTime) {
   const ctx = state.syncEngine.getAudioContext();
   if (!state.bufferGoc) return;
 
-  // Audio start calculation:
-  // If offsetMs is -220ms, it means goc starts 0.220s into video
-  // So when video is at videoCurrentTime, goc position is: videoCurrentTime + (offsetMs / 1000)
+  // Convention (same as server): offset > 0 => music starts `offset` AFTER the start of the dance video.
+  // dance[t] ~ original[t - offset]  =>  position in original = videoTime - offset
   const offsetSec = state.currentOffsetMs / 1000;
-  const gocAudioPosition = videoCurrentTime + offsetSec;
+  const gocAudioPosition = videoCurrentTime - offsetSec;
 
   if (gocAudioPosition >= state.bufferGoc.duration) return;
 
@@ -490,57 +516,54 @@ function goToStep3() {
 async function runExportPipeline() {
   el.exportProgressBox.classList.remove('hidden');
   el.exportResultBox.classList.add('hidden');
+  const sign = state.currentOffsetMs > 0 ? '+' : '';
   el.exportStatusTitle.textContent = 'Đang ghép âm thanh vào video...';
-  el.exportStatusDesc.textContent = 'Đang xử lý luồng âm thanh với độ lệch chuẩn ' + state.currentOffsetMs + 'ms trên Mini PC...';
+  el.exportStatusDesc.textContent = 'Độ lệch áp dụng: ' + sign + state.currentOffsetMs + ' ms. Vui lòng chờ vài giây...';
 
   let pct = 15;
   el.progressBarFill.style.width = pct + '%';
   el.progressPctText.textContent = pct + '%';
 
   const timer = setInterval(() => {
-    if (pct < 85) {
-      pct += 15;
+    if (pct < 90) {
+      pct += 5;
       el.progressBarFill.style.width = pct + '%';
       el.progressPctText.textContent = pct + '%';
     }
-  }, 200);
+  }, 400);
 
   try {
+    if (!state.sessionId) throw new Error('Chưa có phiên làm việc. Hãy quay lại bước 1 và chọn lại video.');
     const formData = new FormData();
-    if (state.fileGoc) formData.append('fileGoc', state.fileGoc);
-    if (state.fileNhay) formData.append('fileNhay', state.fileNhay);
+    formData.append('sessionId', state.sessionId);
     formData.append('offsetMs', state.currentOffsetMs);
     formData.append('musicVol', el.musicVolume.value);
     formData.append('roomVol', el.roomVolume.value);
+    formData.append('trimLeadIn', el.trimLeadIn && el.trimLeadIn.checked ? '1' : '0');
 
-    const response = await fetch('/api/render', {
-      method: 'POST',
-      body: formData
-    });
-
+    const response = await fetch('/api/render', { method: 'POST', body: formData });
     clearInterval(timer);
 
     if (!response.ok) {
-      throw new Error('Lỗi server: ' + response.statusText);
+      let msg = response.statusText;
+      try { msg = (await response.json()).detail || msg; } catch (e) {}
+      throw new Error(msg);
     }
 
     const data = await response.json();
     el.progressBarFill.style.width = '100%';
     el.progressPctText.textContent = '100%';
-
-    setTimeout(() => {
-      onExportComplete(data.downloadUrl, data.filename);
-    }, 300);
+    setTimeout(() => onExportComplete(data.downloadUrl, data.filename), 300);
 
   } catch (err) {
     clearInterval(timer);
-    console.warn('Lỗi gọi API render:', err);
-    // Fallback: use verified 260ms video if offline/network error
-    el.progressBarFill.style.width = '100%';
-    el.progressPctText.textContent = '100%';
-    setTimeout(() => {
-      onExportComplete('v3_adelay260ms.mp4', 'StyleFit_Synced_260ms.mp4');
-    }, 300);
+    console.error('Lỗi xuất video:', err);
+    el.exportStatusTitle.textContent = '⚠️ Không xuất được video';
+    el.exportStatusDesc.textContent = String(err.message || err) + ' — Bấm "Ghép một video khác" để thử lại.';
+    el.exportResultBox.classList.add('hidden');
+    el.progressBarFill.style.width = '0%';
+    el.progressPctText.textContent = '';
+    if (el.exportRetry) el.exportRetry.classList.remove('hidden');
   }
 }
 
