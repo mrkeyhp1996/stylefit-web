@@ -182,9 +182,14 @@ async function handleFileSelect(type, file) {
     el['fileMeta' + type].textContent = `File hợp lệ · ${formatBytes(file.size)}`;
   }
 
-  // Check if both files ready
+  // Check if both files ready -> Auto start analysis without requiring button click!
   if (state.fileGoc && state.fileNhay) {
     el.btnStartAnalysis.disabled = false;
+    el.btnStartAnalysis.innerHTML = '<span class="btn-icon">⚡</span><span>Đang Tự Động Phân Tích...</span>';
+    // Automatically trigger analysis
+    setTimeout(() => {
+      startAnalysis();
+    }, 400);
   }
 }
 
@@ -200,6 +205,14 @@ async function startAnalysis() {
   el.stepNav1.classList.remove('active');
   el.stepNav1.classList.add('completed');
   el.stepNav2.classList.add('active');
+
+  // LOCK Preview Player while calculating so user cannot play un-synced audio!
+  el.btnPlayPause.disabled = true;
+  el.btnPlayPause.style.opacity = '0.6';
+  el.btnPlayPause.style.cursor = 'not-allowed';
+  el.playIcon.textContent = '⏳';
+  el.playText.textContent = 'Đang dò nhịp... (chờ 1-2s)';
+  el.btnOverlayPlay.style.display = 'none';
 
   el.statusIcon.textContent = '⏳';
   el.statusTitle.textContent = 'Đang phân tích bước sóng & nhịp điệu...';
@@ -264,6 +277,14 @@ async function startAnalysis() {
     renderWaveforms();
     setupPreviewDurations();
 
+    // UNLOCK Preview Player - now safe to play synced video!
+    el.btnPlayPause.disabled = false;
+    el.btnPlayPause.style.opacity = '1';
+    el.btnPlayPause.style.cursor = 'pointer';
+    el.playIcon.textContent = '▶';
+    el.playText.textContent = 'Nghe Thử Đồng Bộ';
+    el.btnOverlayPlay.style.display = 'flex';
+
   } catch (err) {
     console.error('Lỗi phân tích sync:', err);
     state.sessionId = null;
@@ -277,6 +298,14 @@ async function startAnalysis() {
     el.confidenceBadge.className = 'status-badge';
     renderWaveforms();
     setupPreviewDurations();
+
+    // UNLOCK in fallback state
+    el.btnPlayPause.disabled = false;
+    el.btnPlayPause.style.opacity = '1';
+    el.btnPlayPause.style.cursor = 'pointer';
+    el.playIcon.textContent = '▶';
+    el.playText.textContent = 'Nghe Thử';
+    el.btnOverlayPlay.style.display = 'flex';
   }
 }
 
