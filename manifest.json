@@ -1,0 +1,21 @@
+{
+  "name": "StyleFit Ghép Nhạc Tự Động",
+  "short_name": "StyleFit Nhạc",
+  "description": "Công cụ ghép nhạc chất lượng cao cho video nhảy Step Dance & Fitness hoàn toàn miễn phí.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0B0D",
+  "theme_color": "#FE7409",
+  "icons": [
+    {
+      "src": "stylefit-badge.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "stylefit-badge.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

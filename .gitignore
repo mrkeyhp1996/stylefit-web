@@ -1,0 +1,4 @@
+# StyleFit Web & Music Sync Tool
+*.log
+.DS_Store
+node_modules/
