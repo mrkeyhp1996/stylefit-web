@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>So Sánh 6 Mức Độ Lệch Nhạc | StyleFit Studio</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .compare-container {
+      max-width: 600px;
+      margin: 20px auto 40px;
+      padding: 0 16px;
+      text-align: center;
+    }
+    .variant-selector {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .btn-variant {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      padding: 12px 10px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-variant.active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+    .btn-variant small {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      opacity: 0.8;
+      margin-top: 2px;
+    }
+    .compare-video-box {
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+      background: #000;
+      aspect-ratio: 9/16;
+      max-width: 300px;
+      margin: 0 auto 24px;
+    }
+    .compare-video-box video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .judge-desc {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+    .judge-desc strong { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-container">
+      <img src="stylefit-logo.svg" alt="StyleFit" class="brand-logo">
+      <span class="tag-badge">🎧 Thẩm định tai nghe HLV</span>
+    </div>
+  </header>
+
+  <main class="compare-container">
+    <h2 style="font-family:var(--font-display); font-size:24px; color:#FFF; margin-bottom:8px;">
+      Bản Nào Khớp Chuẩn Bước Nhảy Nhất?
+    </h2>
+    <p style="font-size:13px; color:var(--text-muted);">
+      Bấm chọn từng bản bên dưới và bấm Phát để thẩm định nhịp đập chân khi chạm đất:
+    </p>
+
+    <!-- Buttons -->
+    <div class="variant-selector">
+      <button class="btn-variant" onclick="switchVariant('v1_adelay100ms.mp4', this, 'Nhạc lùi nhẹ 100ms')">
+        Bản 1: Lùi 100ms
+        <small>Nhạc sau video 0.1s</small>
+      </button>
+
+      <button class="btn-variant" onclick="switchVariant('v2_adelay180ms.mp4', this, 'Nhạc lùi 180ms')">
+        Bản 2: Lùi 180ms
+        <small>Nhẹ hơn bản cũ</small>
+      </button>
+
+      <button class="btn-variant active" onclick="switchVariant('v3_adelay260ms.mp4', this, 'Nhạc lùi 260ms (Đỉnh tương quan)')">
+        Bản 3: Lùi 260ms ★
+        <small>Toán học đề xuất</small>
+      </button>
+
+      <button class="btn-variant" onclick="switchVariant('v4_adelay340ms.mp4', this, 'Nhạc lùi 340ms')">
+        Bản 4: Lùi 340ms
+        <small>Nhạc chậm hơn nữa</small>
+      </button>
+
+      <button class="btn-variant" onclick="switchVariant('v5_nhac_som200ms.mp4', this, 'Nhạc chạy trước 200ms (Ngược lại)')">
+        Bản 5: Chạy sớm 200ms
+        <small>Ngược chiều với bản 1-4</small>
+      </button>
+
+      <button class="btn-variant" onclick="switchVariant('v6_nhac_som400ms.mp4', this, 'Nhạc chạy trước 400ms (Ngược lại)')">
+        Bản 6: Chạy sớm 400ms
+        <small>Nhạc nhanh hơn video</small>
+      </button>
+    </div>
+
+    <div class="judge-desc" id="variantDesc">
+      Đang xem: <strong>Bản 3: Lùi 260ms (Đỉnh tương quan)</strong>
+    </div>
+
+    <!-- Video Player -->
+    <div class="compare-video-box">
+      <video id="cmpVideo" src="v3_adelay260ms.mp4" controls playsinline></video>
+    </div>
+
+    <div>
+      <a href="/" class="btn-secondary" style="font-size:13px; padding:10px 18px;">
+        ← Quay lại trang Ghép Nhạc Chính
+      </a>
+    </div>
+  </main>
+
+  <script>
+    function switchVariant(file, btn, desc) {
+      document.querySelectorAll('.btn-variant').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('variantDesc').innerHTML = 'Đang xem: <strong>' + desc + '</strong>';
+      
+      const v = document.getElementById('cmpVideo');
+      v.pause();
+      v.src = file;
+      v.load();
+      v.play().catch(function(err) {
+        console.log('Play triggered, waiting for user tap:', err);
+      });
+    }
+  </script>
+</body>
+</html>
