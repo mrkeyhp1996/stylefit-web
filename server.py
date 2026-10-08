@@ -265,6 +265,48 @@ async def render_video(
     }
 
 
+@app.post("/api/lead")
+async def register_lead(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    name = (data.get("name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    branch = data.get("branch") or "Thiên Lôi"
+    session_time = data.get("time") or "Ca Chiều / Tối"
+    goal = data.get("goal") or "Giảm mỡ & Học nhảy Step Dance"
+
+    if not name or not phone:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập họ tên và số điện thoại")
+
+    lead_entry = {
+        "id": str(uuid.uuid4())[:8],
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "name": name,
+        "phone": phone,
+        "branch": branch,
+        "sessionTime": session_time,
+        "goal": goal,
+    }
+
+    leads_file = BASE_DIR / "leads.json"
+    leads = []
+    if leads_file.exists():
+        try:
+            leads = json.loads(leads_file.read_text(encoding="utf-8"))
+        except Exception:
+            leads = []
+    leads.insert(0, lead_entry)
+    leads_file.write_text(json.dumps(leads, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return {
+        "ok": True,
+        "message": f"Cảm ơn {name}! StyleFit đã nhận thông tin và sẽ gọi tư vấn trong 15 phút.",
+    }
+
+
 app.mount("/exports", StaticFiles(directory=str(EXPORTS_DIR)), name="exports")
 app.mount("/", StaticFiles(directory=str(BASE_DIR), html=True), name="static")
 

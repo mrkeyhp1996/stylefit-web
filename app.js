@@ -902,3 +902,119 @@ function resetAll() {
   stopPreview();
   location.reload();
 }
+
+// ==========================================
+// HOMEPAGE & BRAND UI CONTROLLERS
+// ==========================================
+
+const mobileDrawer = document.getElementById('mobileDrawer');
+const btnMenuToggle = document.getElementById('btnMobileMenuToggle');
+const btnMenuClose = document.getElementById('btnMobileMenuClose');
+
+if (btnMenuToggle) {
+  btnMenuToggle.addEventListener('click', () => {
+    if (mobileDrawer) mobileDrawer.classList.add('open');
+  });
+}
+
+if (btnMenuClose) {
+  btnMenuClose.addEventListener('click', closeMobileDrawer);
+}
+
+function closeMobileDrawer() {
+  if (mobileDrawer) mobileDrawer.classList.remove('open');
+}
+
+function closeInAppBanner() {
+  const b = document.getElementById('inAppBanner');
+  if (b) b.classList.add('hidden');
+}
+
+function switchBranch(branchId, btn) {
+  document.querySelectorAll('.branch-tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  const card1 = document.getElementById('branchThienLoi');
+  const card2 = document.getElementById('branchHongBang');
+
+  if (branchId === 'thienloi') {
+    if (card1) card1.classList.remove('hidden');
+    if (card2) card2.classList.add('hidden');
+  } else {
+    if (card1) card1.classList.add('hidden');
+    if (card2) card2.classList.remove('hidden');
+  }
+}
+
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  if (!item) return;
+  const wasActive = item.classList.contains('active');
+  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+  if (!wasActive) {
+    item.classList.add('active');
+  }
+}
+
+async function handleLeadSubmit(event) {
+  event.preventDefault();
+  const name = document.getElementById('leadName')?.value.trim();
+  const phone = document.getElementById('leadPhone')?.value.trim();
+  const branch = document.getElementById('leadBranch')?.value;
+  const time = document.getElementById('leadTime')?.value;
+  const goal = document.getElementById('leadGoal')?.value;
+  const btn = document.getElementById('btnSubmitLead');
+  const feedback = document.getElementById('leadFormFeedback');
+
+  if (!name || !phone) {
+    if (feedback) {
+      feedback.className = 'form-feedback error';
+      feedback.textContent = 'Vui lòng nhập đầy đủ họ tên và số điện thoại!';
+      feedback.classList.remove('hidden');
+    }
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ Đang gửi đăng ký...</span>';
+  }
+
+  try {
+    const res = await fetch('/api/lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone, branch, time, goal })
+    });
+    const result = await res.json();
+    if (res.ok && result.ok) {
+      if (feedback) {
+        feedback.className = 'form-feedback success';
+        feedback.textContent = result.message || '🎉 Đăng ký thành công! HLV StyleFit sẽ liên hệ hỗ trợ bạn trong 15 phút.';
+        feedback.classList.remove('hidden');
+      }
+      document.getElementById('leadRegisterForm')?.reset();
+    } else {
+      throw new Error(result.detail || 'Có lỗi xảy ra, vui lòng thử lại.');
+    }
+  } catch (err) {
+    if (feedback) {
+      feedback.className = 'form-feedback error';
+      feedback.textContent = '⚠️ ' + (err.message || 'Lỗi gửi thông tin. Vui lòng nhắn trực tiếp Zalo HLV!');
+      feedback.classList.remove('hidden');
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">🚀</span><span>GỬI ĐĂNG KÝ NGAY (GIỮ CHỖ 0Đ)</span>';
+    }
+  }
+}
+
+// Global exposure for HTML onclick attributes
+window.closeMobileDrawer = closeMobileDrawer;
+window.closeInAppBanner = closeInAppBanner;
+window.switchBranch = switchBranch;
+window.toggleFaq = toggleFaq;
+window.handleLeadSubmit = handleLeadSubmit;
+

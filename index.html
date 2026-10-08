@@ -2,22 +2,22 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>StyleFit Ghép Nhạc Tự Động | Khớp Nhạc Video Nhảy Chuẩn Mili-giây</title>
-  <meta name="description" content="Công cụ ghép nhạc chất lượng cao cho video nhảy Step Dance & Fitness hoàn toàn miễn phí. Tự động đồng bộ âm thanh loa phòng tập với bản nhạc gốc, xuất video trong 2 giây.">
-  <meta name="theme-color" content="#0B0B0C">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>StyleFit Step Dance & Fitness | Studio Thể Thao Âm Nhạc Hải Phòng</title>
+  <meta name="description" content="Hệ thống phòng tập Step Dance & Thể thao âm nhạc độc quyền tại Hải Phòng. Đốt 600-800 kcal/buổi, theo dõi chỉ số Tanita Nhật Bản, tích hợp công cụ ghép nhạc video nhảy chuẩn mili-giây.">
+  <meta name="theme-color" content="#0B0B0D">
 
   <!-- Favicon / PWA -->
   <link rel="icon" type="image/svg+xml" href="stylefit-badge.svg">
   <link rel="apple-touch-icon" href="stylefit-badge.png">
   <link rel="manifest" href="manifest.json">
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts: Outfit (Display & Sport) + Plus Jakarta Sans (Body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=2.7">
+  <link rel="stylesheet" href="style.css?v=3.0">
 </head>
 <body>
 
@@ -26,422 +26,1001 @@
     <div class="banner-content">
       <span class="banner-icon">💡</span>
       <div class="banner-text">
-        <strong>Mở bằng trình duyệt để tải video mượt mà!</strong>
-        <span>Bạn đang trong TikTok/FB. Hãy bấm dấu <strong class="dots">⋯</strong> góc trên và chọn <em>"Mở bằng trình duyệt"</em>.</span>
+        <strong>Mở bằng trình duyệt để tải video & trải nghiệm tốt nhất!</strong>
+        <span>Bạn đang trong app TikTok/FB. Hãy bấm dấu <strong class="dots">⋯</strong> góc trên và chọn <em>"Mở bằng trình duyệt"</em>.</span>
       </div>
       <button class="banner-close" onclick="closeInAppBanner()">✕</button>
     </div>
   </div>
 
-  <!-- Header -->
-  <header class="site-header">
+  <!-- STICKY HEADER -->
+  <header class="site-header" id="siteHeader">
     <div class="container header-container">
-      <div class="brand">
+      <a href="#hero" class="brand" aria-label="StyleFit Home">
         <img src="stylefit-logo.svg" alt="StyleFit Logo" class="brand-logo">
+      </a>
+
+      <!-- Desktop Navigation Menu -->
+      <nav class="desktop-nav">
+        <a href="#hero" class="nav-link active">Trang Chủ</a>
+        <a href="#ghep-nhac" class="nav-link tool-nav-link">
+          <span class="sparkle">🎵</span> Ghép Nhạc
+          <span class="nav-badge-hot">HOT</span>
+        </a>
+        <a href="#step-dance" class="nav-link">Step Dance</a>
+        <a href="#co-so" class="nav-link">Lịch Tập & Cơ Sở</a>
+        <a href="#bang-gia" class="nav-link">Bảng Giá</a>
+        <a href="#faq" class="nav-link">Hỏi Đáp</a>
+      </nav>
+
+      <!-- Header Actions -->
+      <div class="header-actions">
+        <a href="https://stylefit-hp.netlify.app" target="_blank" class="btn-member-portal desktop-only" title="Đăng nhập tài khoản hội viên StyleFit">
+          <span class="btn-icon">👤</span> Cổng Hội Viên
+        </a>
+        <a href="#dang-ky" class="btn-header-cta">
+          <span class="btn-icon">🔥</span> Tập Thử 0đ
+        </a>
+
+        <!-- Mobile Menu Toggle Button -->
+        <button id="btnMobileMenuToggle" class="btn-menu-toggle mobile-only" aria-label="Mở menu điều hướng">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
       </div>
-      <div class="header-badges">
-        <span class="tag-badge pulse"><span class="dot"></span> Miễn phí 100%</span>
-        <span class="tag-badge desktop-only">⚡ Xử lý trong 2s</span>
+    </div>
+
+    <!-- Mobile Drawer Navigation -->
+    <div id="mobileDrawer" class="mobile-drawer">
+      <div class="drawer-header">
+        <img src="stylefit-logo.svg" alt="StyleFit Logo" class="drawer-logo">
+        <button id="btnMobileMenuClose" class="drawer-close" aria-label="Đóng menu">✕</button>
+      </div>
+      <nav class="drawer-nav">
+        <a href="#hero" class="drawer-link" onclick="closeMobileDrawer()">🏠 Trang Chủ</a>
+        <a href="#ghep-nhac" class="drawer-link drawer-tool-link" onclick="closeMobileDrawer()">
+          🎵 Công Cụ Ghép Nhạc Tự Động <span class="drawer-badge">HOT</span>
+        </a>
+        <a href="#step-dance" class="drawer-link" onclick="closeMobileDrawer()">💃 Bộ Môn Step Dance</a>
+        <a href="#co-so" class="drawer-link" onclick="closeMobileDrawer()">📍 2 Cơ Sở & Lịch Tập</a>
+        <a href="#bang-gia" class="drawer-link" onclick="closeMobileDrawer()">🏷️ Bảng Giá Gói Tập</a>
+        <a href="#faq" class="drawer-link" onclick="closeMobileDrawer()">❓ Câu Hỏi Thường Gặp</a>
+        <a href="#dang-ky" class="drawer-link highlight" onclick="closeMobileDrawer()">🔥 Đăng Ký Tập Thử Miễn Phí (0đ)</a>
+        <a href="https://stylefit-hp.netlify.app" target="_blank" class="drawer-link member" onclick="closeMobileDrawer()">👤 Đăng Nhập Cổng Hội Viên</a>
+        <a href="https://www.tiktok.com/@duyk_stephi" target="_blank" class="drawer-link tiktok" onclick="closeMobileDrawer()">📱 TikTok HLV DuyK StepHi</a>
+      </nav>
+      <div class="drawer-footer">
+        <p>Cơ sở 1: Thiện Lộc · Cơ sở 2: Hồng Bàng, Hải Phòng</p>
+        <p class="drawer-hotline">Hotline / Zalo: 0989.xxx.xxx</p>
       </div>
     </div>
   </header>
 
-  <!-- Hero Section -->
-  <section class="hero-section">
+  <!-- HERO SECTION -->
+  <section class="hero-section" id="hero">
     <div class="container hero-container">
-      <div class="hero-badge">🎵 CÔNG CỤ DÀNH RIÊNG CHO HLV & DANCER</div>
-      <h1 class="hero-title">
-        Ghép Nhạc <span class="highlight">Chuẩn Nhịp</span> Cho Video Nhảy
-      </h1>
-      <p class="hero-subtitle">
-        Tự động phân tích tiếng loa phòng tập & căn khớp chuẩn mili-giây với bản nhạc gốc. 
-        <strong>Giữ nguyên 100% độ nét hình ảnh</strong>, không mờ vỡ, xuất video chỉ trong 2 giây.
-      </p>
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="pulse-dot"></span> STUDIO STEP DANCE HÀNG ĐẦU HẢI PHÒNG
+        </div>
+        <h1 class="hero-title">
+          Cháy Cùng <span class="highlight">Nhịp Điệu</span><br>
+          Bứt Phá <span class="highlight-cyan">Vóc Dáng Chuẩn Fit</span>
+        </h1>
+        <p class="hero-subtitle">
+          Hệ thống phòng tập <strong>Step Dance & Thể thao âm nhạc độc quyền</strong> tại Hải Phòng. 
+          Đốt cháy <strong>600–800 kcal/buổi</strong>, giải tỏa căng thẳng cực đỉnh kết hợp kiểm soát chỉ số mỡ & cơ bắp khoa học theo chuẩn máy đo <strong>Tanita Nhật Bản</strong>.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="hero-cta-group">
+          <a href="#dang-ky" class="btn-hero-primary">
+            <span class="btn-icon">🔥</span>
+            <span>Đăng Ký Tập Thử Miễn Phí (0đ)</span>
+          </a>
+          <a href="#ghep-nhac" class="btn-hero-secondary">
+            <span class="btn-icon">🎵</span>
+            <span>Công Cụ Ghép Nhạc Video</span>
+          </a>
+        </div>
+
+        <!-- Social Proof Stats Bar -->
+        <div class="hero-stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">1,500+</div>
+            <div class="stat-label">Hội viên theo tập</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">2 Cơ Sở</div>
+            <div class="stat-label">Thiên Lôi & Hồng Bàng</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">600–800</div>
+            <div class="stat-label">Kcal đốt mỗi ca</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">100%</div>
+            <div class="stat-label">Chuẩn nhịp âm nhạc</div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- Main Tool Container -->
-  <main class="tool-main">
+  <!-- SECTION: CÔNG CỤ GHÉP NHẠC TỰ ĐỘNG (MUSIC SYNC STUDIO) -->
+  <section class="tool-section-wrapper" id="ghep-nhac">
     <div class="container">
+      
+      <!-- Tool Section Header -->
+      <div class="section-header-box">
+        <div class="section-mini-badge">🎧 CÔNG NGHỆ ĐỘC QUYỀN HLV & DANCER</div>
+        <h2 class="section-heading">Công Cụ Ghép Nhạc Video Nhảy Chuẩn Mili-giây</h2>
+        <p class="section-subtext">
+          Quay video nhảy tại phòng tập có tiếng loa rè, tiếng hò reo? 
+          Hệ thống <strong>tự động đối chiếu sóng âm</strong>, khử rè, căn khớp bản nhạc gốc chất lượng cao và giữ trọn vẹn <strong>chất lượng 4K / 1080p 60fps</strong> trong 2 giây!
+        </p>
+      </div>
 
-      <!-- Step Indicator -->
-      <div class="steps-nav">
-        <div class="step-nav-item active" id="stepNavItem1">
-          <span class="step-num">1</span>
-          <span class="step-label">Chọn video</span>
+      <!-- Quick 3-Step Visual Infographic -->
+      <div class="tool-quick-guide">
+        <div class="guide-item">
+          <div class="guide-num">1</div>
+          <div class="guide-text">
+            <strong>Chọn 2 Video</strong>
+            <span>1 clip nhạc gốc + 1 clip nhảy quay ở phòng</span>
+          </div>
         </div>
-        <div class="step-nav-divider"></div>
-        <div class="step-nav-item" id="stepNavItem2">
-          <span class="step-num">2</span>
-          <span class="step-label">Căn nhịp & Nghe thử</span>
+        <div class="guide-arrow">➔</div>
+        <div class="guide-item">
+          <div class="guide-num">2</div>
+          <div class="guide-text">
+            <strong>Dò Nhịp & Nghe Thử</strong>
+            <span>Tự động khớp sóng âm, cắt đoạn thừa đầu/đuôi</span>
+          </div>
         </div>
-        <div class="step-nav-divider"></div>
-        <div class="step-nav-item" id="stepNavItem3">
-          <span class="step-num">3</span>
-          <span class="step-label">Xuất video</span>
+        <div class="guide-arrow">➔</div>
+        <div class="guide-item">
+          <div class="guide-num">3</div>
+          <div class="guide-text">
+            <strong>Xuất Video 2 Giây</strong>
+            <span>Tải MP4 nét căng đăng TikTok / Reels / Facebook</span>
+          </div>
         </div>
       </div>
 
-      <!-- STEP 1: UPLOAD -->
-      <section id="step1" class="tool-step active">
-        <div class="upload-grid">
-          
-          <!-- Card 1: Original Video (Music source) -->
-          <div class="upload-card" id="cardGoc">
-            <div class="card-header">
-              <div class="card-icon music-icon">🎵</div>
-              <div class="card-title-group">
-                <span class="card-badge">BƯỚC 1A</span>
-                <h3>Video Gốc (Lấy Nhạc Chuẩn)</h3>
-              </div>
-            </div>
-            <p class="card-desc">Video tải từ TikTok, YouTube hoặc file MP3/MP4 có nhạc to, rõ, chất lượng cao.</p>
-            
-            <div class="drop-zone" id="dropGoc" onclick="document.getElementById('inputGoc').click()">
-              <input type="file" id="inputGoc" accept="video/*,audio/*" style="display:none">
-              <div class="drop-content" id="dropContentGoc">
-                <div class="upload-art">📂</div>
-                <div class="drop-text">
-                  <strong>Bấm để chọn</strong> hoặc kéo thả file vào đây
-                </div>
-                <div class="drop-hint">Hỗ trợ MP4, MOV, MP3, M4A</div>
-              </div>
-              <div class="file-preview hidden" id="previewGoc">
-                <div class="file-info">
-                  <span class="file-name" id="fileNameGoc">video-goc.mp4</span>
-                  <span class="file-meta" id="fileMetaGoc">01:01 · 9 MB</span>
-                </div>
-                <button type="button" class="btn-change-file" onclick="changeFile('Goc', event)">Đổi file</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 2: Dance Video (Visual source) -->
-          <div class="upload-card" id="cardNhay">
-            <div class="card-header">
-              <div class="card-icon dance-icon">💃</div>
-              <div class="card-title-group">
-                <span class="card-badge orange">BƯỚC 1B</span>
-                <h3>Video Bạn Nhảy (Quay Tại Phòng)</h3>
-              </div>
-            </div>
-            <p class="card-desc">Video bạn quay bằng điện thoại tại phòng tập (có thu tiếng nhạc loa, tiếng hô...).</p>
-            
-            <div class="drop-zone" id="dropNhay" onclick="document.getElementById('inputNhay').click()">
-              <input type="file" id="inputNhay" accept="video/*" style="display:none">
-              <div class="drop-content" id="dropContentNhay">
-                <div class="upload-art">🎬</div>
-                <div class="drop-text">
-                  <strong>Bấm để chọn</strong> hoặc kéo thả video nhảy
-                </div>
-                <div class="drop-hint">Hỗ trợ MP4, MOV (iPhone)</div>
-              </div>
-              <div class="file-preview hidden" id="previewNhay">
-                <div class="file-info">
-                  <span class="file-name" id="fileNameNhay">video-nhay.mp4</span>
-                  <span class="file-meta" id="fileMetaNhay">00:58 · 15 MB</span>
-                </div>
-                <button type="button" class="btn-change-file" onclick="changeFile('Nhay', event)">Đổi file</button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <div class="action-footer">
-          <button id="btnStartAnalysis" class="btn-primary" disabled onclick="startAnalysis()">
-            <span class="btn-icon">⚡</span>
-            <span>Tự Động Phân Tích & Căn Nhịp</span>
-          </button>
-          <div class="privacy-note">🔒 File của bạn được xử lý trực tiếp trên máy của bạn, hoàn toàn riêng tư.</div>
-        </div>
-      </section>
-
-      <!-- STEP 2: STUDIO & SYNC -->
-      <section id="step2" class="tool-step hidden">
+      <!-- Main Tool Container -->
+      <div class="tool-card-shell">
         
-        <!-- Status Banner -->
-        <div class="sync-status-box" id="syncStatusBox">
-          <div class="status-indicator-icon" id="statusIcon">⏳</div>
-          <div class="status-details">
-            <h4 id="statusTitle">Đang phân tích bước sóng âm thanh...</h4>
-            <p id="statusDesc">Hệ thống đang trích xuất nhịp bass và phổ tần số để tìm độ lệch...</p>
+        <!-- Step Indicator -->
+        <div class="steps-nav">
+          <div class="step-nav-item active" id="stepNavItem1">
+            <span class="step-num">1</span>
+            <span class="step-label">Chọn video</span>
           </div>
-          <div class="status-badge" id="confidenceBadge">Đang đo</div>
+          <div class="step-nav-divider"></div>
+          <div class="step-nav-item" id="stepNavItem2">
+            <span class="step-num">2</span>
+            <span class="step-label">Căn nhịp & Nghe thử</span>
+          </div>
+          <div class="step-nav-divider"></div>
+          <div class="step-nav-item" id="stepNavItem3">
+            <span class="step-num">3</span>
+            <span class="step-label">Xuất video</span>
+          </div>
         </div>
 
-        <!-- Waveform Studio Canvas -->
-        <div class="studio-card">
-          <div class="studio-header">
-            <h4>BƯỚC SÓNG ÂM THANH</h4>
-            <div class="waveform-legends">
-              <span class="legend"><span class="legend-color goc-color"></span> Nhạc gốc</span>
-              <span class="legend"><span class="legend-color nhay-color"></span> Nhạc video nhảy</span>
-            </div>
-          </div>
-
-          <div class="canvas-wrap">
-            <canvas id="waveformCanvas"></canvas>
-            <div id="playhead" class="canvas-playhead"></div>
-          </div>
-
-          <!-- Offset Nudge Controls -->
-          <div class="nudge-controls">
-            <span class="nudge-label">Độ lệch thời gian:</span>
-            <div class="nudge-btn-group">
-              <button class="btn-nudge" onclick="adjustOffset(-100)">-100ms</button>
-              <button class="btn-nudge" onclick="adjustOffset(-50)">-50ms</button>
-              <button class="btn-nudge" onclick="adjustOffset(-10)">-10ms</button>
+        <!-- STEP 1: UPLOAD -->
+        <section id="step1" class="tool-step active">
+          <div class="upload-grid">
+            
+            <!-- Card 1: Original Video (Music source) -->
+            <div class="upload-card" id="cardGoc">
+              <div class="card-header">
+                <div class="card-icon music-icon">🎵</div>
+                <div class="card-title-group">
+                  <span class="card-badge">BƯỚC 1A</span>
+                  <h3>Video Gốc (Lấy Nhạc Chuẩn)</h3>
+                </div>
+              </div>
+              <p class="card-desc">Video tải từ TikTok, YouTube hoặc file MP3/MP4 có nhạc to, rõ, chất lượng cao.</p>
               
-              <div class="offset-input-wrap">
-                <input type="number" id="offsetInput" value="0" step="5" onchange="onOffsetInputChange()">
-                <span class="unit">ms</span>
-              </div>
-
-              <button class="btn-nudge" onclick="adjustOffset(+10)">+10ms</button>
-              <button class="btn-nudge" onclick="adjustOffset(+50)">+50ms</button>
-              <button class="btn-nudge" onclick="adjustOffset(+100)">+100ms</button>
-            </div>
-            <button class="btn-reset-nudge" onclick="resetToAutoOffset()" title="Quay lại độ lệch tự động gợi ý">↺ Khớp tự động</button>
-          </div>
-        </div>
-
-        <!-- Video & Audio Preview Player -->
-        <div class="preview-player-card">
-          <div class="player-grid">
-            
-            <div class="video-container">
-              <video id="previewVideo" playsinline muted></video>
-              <div class="video-overlay-play" id="btnOverlayPlay" onclick="togglePlayPreview()">
-                ▶
+              <div class="drop-zone" id="dropGoc" onclick="document.getElementById('inputGoc').click()">
+                <input type="file" id="inputGoc" accept="video/*,audio/*" style="display:none">
+                <div class="drop-content" id="dropContentGoc">
+                  <div class="upload-art">📂</div>
+                  <div class="drop-text">
+                    <strong>Bấm để chọn</strong> hoặc kéo thả file vào đây
+                  </div>
+                  <div class="drop-hint">Hỗ trợ MP4, MOV, MP3, M4A</div>
+                </div>
+                <div class="file-preview hidden" id="previewGoc">
+                  <div class="file-info">
+                    <span class="file-name" id="fileNameGoc">video-goc.mp4</span>
+                    <span class="file-meta" id="fileMetaGoc">01:01 · 9 MB</span>
+                  </div>
+                  <button type="button" class="btn-change-file" onclick="changeFile('Goc', event)">Đổi file</button>
+                </div>
               </div>
             </div>
 
-            <div class="player-controls">
-              <div class="player-buttons">
-                <button id="btnPlayPause" class="btn-player primary" onclick="togglePlayPreview()">
-                  <span id="playIcon">▶</span>
-                  <span id="playText">Nghe Thử Đồng Bộ</span>
-                </button>
-                <button class="btn-player secondary" onclick="seekPreview(0)">
-                  <span>⏮ Về đầu</span>
-                </button>
-              </div>
-
-              <div class="time-display">
-                <span id="currentTimeText">00:00</span> / <span id="durationTimeText">00:00</span>
-              </div>
-
-              <!-- Audio Blend Options -->
-              <div class="audio-blend-options">
-                <div class="option-row">
-                  <label for="musicVolume">Âm lượng nhạc gốc:</label>
-                  <input type="range" id="musicVolume" min="0" max="100" value="100" oninput="updateAudioVolumes()">
-                  <span id="musicVolText" class="val-text">100%</span>
-                </div>
-                
-                <div class="option-row">
-                  <label for="roomVolume">Giữ tiếng phòng tập (tiếng hô, vỗ tay):</label>
-                  <input type="range" id="roomVolume" min="0" max="40" value="0" oninput="updateAudioVolumes()">
-                  <span id="roomVolText" class="val-text">0%</span>
+            <!-- Card 2: Dance Video (Visual source) -->
+            <div class="upload-card" id="cardNhay">
+              <div class="card-header">
+                <div class="card-icon dance-icon">💃</div>
+                <div class="card-title-group">
+                  <span class="card-badge orange">BƯỚC 1B</span>
+                  <h3>Video Bạn Nhảy (Quay Tại Phòng)</h3>
                 </div>
               </div>
-
+              <p class="card-desc">Video bạn quay bằng điện thoại tại phòng tập (có thu tiếng nhạc loa, tiếng hô...).</p>
+              
+              <div class="drop-zone" id="dropNhay" onclick="document.getElementById('inputNhay').click()">
+                <input type="file" id="inputNhay" accept="video/*" style="display:none">
+                <div class="drop-content" id="dropContentNhay">
+                  <div class="upload-art">🎬</div>
+                  <div class="drop-text">
+                    <strong>Bấm để chọn</strong> hoặc kéo thả video nhảy
+                  </div>
+                  <div class="drop-hint">Hỗ trợ MP4, MOV (iPhone 16 / 15 / 14...)</div>
+                </div>
+                <div class="file-preview hidden" id="previewNhay">
+                  <div class="file-info">
+                    <span class="file-name" id="fileNameNhay">video-nhay.mp4</span>
+                    <span class="file-meta" id="fileMetaNhay">00:58 · 15 MB</span>
+                  </div>
+                  <button type="button" class="btn-change-file" onclick="changeFile('Nhay', event)">Đổi file</button>
+                </div>
+              </div>
             </div>
 
           </div>
-        </div>
 
-        <!-- Dedicated Trimming Card (Cắt gọt trước & sau video) -->
-        <div class="trim-card" id="trimCard">
-          <div class="trim-header">
-            <div class="trim-header-left">
-              <span class="trim-icon">✂️</span>
-              <div>
-                <h4>CẮT GỌT ĐOẠN THỪA (ĐẦU & ĐUÔI VIDEO)</h4>
-                <p>Tự động loại bỏ đoạn đứng chờ trước khi nhảy & đoạn thừa sau khi hết bài nhạc.</p>
-              </div>
-            </div>
-            <button type="button" class="btn-trim-reset" onclick="resetTrimToAuto()" title="Khôi phục cắt tự động theo bài nhạc">↺ Tự động cắt</button>
-          </div>
-
-          <div class="trim-grid">
-            <!-- Cột Trái: Đoạn Đầu (Trước khi nhảy) -->
-            <div class="trim-col">
-              <div class="trim-toggle-row">
-                <label class="switch-wrap">
-                  <input type="checkbox" id="trimStartToggle" checked onchange="onTrimToggleChange()">
-                  <span class="switch-slider"></span>
-                </label>
-                <div class="trim-toggle-label">
-                  <strong>Cắt bỏ đoạn chờ đầu</strong>
-                  <span id="trimStartHint" class="trim-hint">Bỏ đoạn đứng chờ trước khi nhạc vào</span>
-                </div>
-              </div>
-
-              <div class="trim-stepper-wrap" id="trimStartControls">
-                <span class="stepper-label">Bắt đầu tại:</span>
-                <div class="stepper-box">
-                  <button type="button" class="btn-step" onclick="adjustTrimStart(-0.5)">-0.5s</button>
-                  <input type="number" id="trimStartInput" value="0.0" step="0.1" min="0" onchange="onTrimInputChange()">
-                  <span class="step-unit">giây</span>
-                  <button type="button" class="btn-step" onclick="adjustTrimStart(0.5)">+0.5s</button>
-                </div>
-              </div>
-
-              <div class="trim-quick-chips">
-                <button type="button" class="chip-btn" onclick="setTrimStartPreset('auto')">🎯 Lúc vào nhạc</button>
-                <button type="button" class="chip-btn" onclick="setTrimStartPreset('zero')">🎬 Từ đầu (0s)</button>
-              </div>
-            </div>
-
-            <!-- Cột Phải: Đoạn Đuôi (Sau khi nhảy xong) -->
-            <div class="trim-col">
-              <div class="trim-toggle-row">
-                <label class="switch-wrap">
-                  <input type="checkbox" id="trimEndToggle" checked onchange="onTrimToggleChange()">
-                  <span class="switch-slider"></span>
-                </label>
-                <div class="trim-toggle-label">
-                  <strong>Cắt đoạn thừa cuối clip</strong>
-                  <span id="trimEndHint" class="trim-hint">Dừng đúng khi hết bài nhạc gốc</span>
-                </div>
-              </div>
-
-              <div class="trim-stepper-wrap" id="trimEndControls">
-                <span class="stepper-label">Kết thúc tại:</span>
-                <div class="stepper-box">
-                  <button type="button" class="btn-step" onclick="adjustTrimEnd(-0.5)">-0.5s</button>
-                  <input type="number" id="trimEndInput" value="0.0" step="0.1" min="0" onchange="onTrimInputChange()">
-                  <span class="step-unit">giây</span>
-                  <button type="button" class="btn-step" onclick="adjustTrimEnd(0.5)">+0.5s</button>
-                </div>
-              </div>
-
-              <div class="trim-quick-chips">
-                <button type="button" class="chip-btn" onclick="setTrimEndPreset('auto')">🎯 Khi hết nhạc</button>
-                <button type="button" class="chip-btn" onclick="setTrimEndPreset('full')">🎬 Hết clip quay</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Trimming Summary Bar -->
-          <div class="trim-summary-bar">
-            <div class="summary-info">
-              <span class="summary-icon">⏱️</span>
-              <div class="summary-texts">
-                <div id="trimSummaryTitle" class="summary-title">Thời lượng video xuất: <strong id="trimSummaryDur">00:00</strong></div>
-                <div id="trimSummaryBadges" class="summary-badges"></div>
-              </div>
-            </div>
-            <button type="button" class="btn-preview-trim" onclick="previewTrimmedRange()">
-              <span>▶ Nghe & xem thử đoạn cắt</span>
+          <div class="action-footer">
+            <button id="btnStartAnalysis" class="btn-primary btn-cta-large" disabled onclick="startAnalysis()">
+              <span class="btn-icon">⚡</span>
+              <span>Tự Động Phân Tích & Căn Nhịp</span>
             </button>
+            <div class="privacy-note">🔒 Bảo mật 100%: File xử lý an toàn trực tiếp trên máy của bạn, không lộ video riêng tư.</div>
           </div>
-        </div>
+        </section>
 
-        <!-- Resolution & Quality Card -->
-        <div class="resolution-card">
-          <div class="resolution-header">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-              <h4>📐 CHẤT LƯỢNG & ĐỘ PHÂN GIẢI XUẤT VIDEO</h4>
-              <span id="detectedVideoBadge" class="trim-badge" style="display:none;background:rgba(0,229,255,0.15);color:var(--accent-cyan);border-color:rgba(0,229,255,0.3);">📱 Đang nhận diện video...</span>
-            </div>
-            <span class="res-subtext">Tùy chọn độ phân giải phù hợp cho mục đích sử dụng của bạn</span>
-          </div>
-
-          <div class="resolution-grid">
-            <label class="res-option-card active" id="resCardOriginal" onclick="selectResolutionMode('original')">
-              <input type="radio" name="resMode" value="original" checked>
-              <div class="res-card-body">
-                <div class="res-card-title-row">
-                  <span class="res-icon">🌟</span>
-                  <span class="res-title" id="resTitleOriginal">Giữ Trọn 4K / Độ Phân Giải Gốc</span>
-                  <span class="badge-recommended" id="badgeOriginalMaster" style="background:linear-gradient(135deg, #00E5FF 0%, #0091EA 100%);color:#000;">MASTER QUALITY</span>
-                </div>
-                <p class="res-desc" id="resDescOriginal">
-                  Giữ 100% độ nét đỉnh cao từ camera iPhone (4K / 1080p, 60fps). Không bị hạ bất kỳ pixel nào, lưu trữ và chiếu màn hình lớn nét tuyệt đối.
-                </p>
-              </div>
-            </label>
-
-            <label class="res-option-card" id="resCardTiktok" onclick="selectResolutionMode('tiktok_1080p')">
-              <input type="radio" name="resMode" value="tiktok_1080p">
-              <div class="res-card-body">
-                <div class="res-card-title-row">
-                  <span class="res-icon">📱</span>
-                  <span class="res-title">Tối Ưu 1080p TikTok Ready</span>
-                  <span class="badge-recommended" style="background:var(--primary);color:#000;">CHO TIKTOK / REELS</span>
-                </div>
-                <p class="res-desc">
-                  Chuẩn hóa 1080x1920 (9:16), lọc nét viền Unsharp. Vì TikTok chỉ phát tối đa 1080p trên điện thoại, xuất bản này giúp file nhẹ hơn và tránh bị TikTok tự nén ẩu làm vỡ hạt.
-                </p>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- Step 2 Final Action -->
-        <div class="action-footer" style="margin-top: 10px;">
-          <button class="btn-primary" style="font-size: 16px; padding: 16px 36px;" onclick="goToStep3()">
-            <span class="btn-icon">⚡</span>
-            <span>Tiếp tục: Xuất Video Hoàn Chỉnh ➔</span>
-          </button>
-        </div>
-
-      </section>
-
-      <!-- STEP 3: EXPORT & DOWNLOAD -->
-      <section id="step3" class="tool-step hidden">
-        <div class="export-card">
+        <!-- STEP 2: STUDIO & SYNC -->
+        <section id="step2" class="tool-step hidden">
           
-          <div id="exportProgressBox" class="export-progress-box">
-            <div class="export-spinner" id="exportSpinner">⚡</div>
-            <h3 id="exportStatusTitle">Đang ghép âm thanh vào video...</h3>
-            <p id="exportStatusDesc">Giữ nguyên luồng hình ảnh 100%, không bị nén lại. Chỉ mất vài giây!</p>
-            
-            <div class="progress-bar-wrap">
-              <div class="progress-bar-fill" id="progressBarFill" style="width: 15%"></div>
+          <!-- Status Banner -->
+          <div class="sync-status-box" id="syncStatusBox">
+            <div class="status-indicator-icon" id="statusIcon">⏳</div>
+            <div class="status-details">
+              <h4 id="statusTitle">Đang phân tích bước sóng âm thanh...</h4>
+              <p id="statusDesc">Hệ thống đang trích xuất nhịp bass và phổ tần số để tìm độ lệch...</p>
             </div>
-            <span class="progress-pct" id="progressPctText">15%</span>
-            <button id="exportRetry" class="btn-secondary hidden" style="margin-top:16px" onclick="resetAll()">🔄 Thử lại từ đầu</button>
+            <div class="status-badge" id="confidenceBadge">Đang đo</div>
           </div>
 
-          <!-- Result Area (Appears when ready) -->
-          <div id="exportResultBox" class="export-result-box hidden">
-            <div class="success-badge">🎉 ĐÃ GHÉP NHẠC THÀNH CÔNG!</div>
-            <h2>Video Của Bạn Đã Sẵn Sàng</h2>
-            <p>Nhạc chất lượng cao đã được căn khớp chuẩn từng mili-giây. Bạn có thể xem lại hoặc tải về ngay:</p>
-
-            <div class="result-video-wrap">
-              <video id="finalVideo" controls playsinline></video>
+          <!-- Waveform Studio Canvas -->
+          <div class="studio-card">
+            <div class="studio-header">
+              <h4>BƯỚC SÓNG ÂM THANH</h4>
+              <div class="waveform-legends">
+                <span class="legend"><span class="legend-color goc-color"></span> Nhạc gốc</span>
+                <span class="legend"><span class="legend-color nhay-color"></span> Nhạc video nhảy</span>
+              </div>
             </div>
 
-            <div class="download-actions">
-              <a id="btnDownload" class="btn-primary btn-download" download="stylefit_synced_video.mp4">
-                <span class="btn-icon">📥</span>
-                <span>Tải Video Về Máy (MP4)</span>
-              </a>
+            <div class="canvas-wrap">
+              <canvas id="waveformCanvas"></canvas>
+              <div id="playhead" class="canvas-playhead"></div>
+            </div>
 
-              <button id="btnShare" class="btn-secondary btn-share" onclick="shareVideo()">
-                <span class="btn-icon">📱</span>
-                <span>Lưu Vào Thư Viện / Đăng TikTok</span>
+            <!-- Offset Nudge Controls -->
+            <div class="nudge-controls">
+              <span class="nudge-label">Độ lệch thời gian:</span>
+              <div class="nudge-btn-group">
+                <button class="btn-nudge" onclick="adjustOffset(-100)">-100ms</button>
+                <button class="btn-nudge" onclick="adjustOffset(-50)">-50ms</button>
+                <button class="btn-nudge" onclick="adjustOffset(-10)">-10ms</button>
+                
+                <div class="offset-input-wrap">
+                  <input type="number" id="offsetInput" value="0" step="5" onchange="onOffsetInputChange()">
+                  <span class="unit">ms</span>
+                </div>
+
+                <button class="btn-nudge" onclick="adjustOffset(+10)">+10ms</button>
+                <button class="btn-nudge" onclick="adjustOffset(+50)">+50ms</button>
+                <button class="btn-nudge" onclick="adjustOffset(+100)">+100ms</button>
+              </div>
+              <button class="btn-reset-nudge" onclick="resetToAutoOffset()" title="Quay lại độ lệch tự động gợi ý">↺ Khớp tự động</button>
+            </div>
+          </div>
+
+          <!-- Video & Audio Preview Player -->
+          <div class="preview-player-card">
+            <div class="player-grid">
+              
+              <div class="video-container">
+                <video id="previewVideo" playsinline muted></video>
+                <div class="video-overlay-play" id="btnOverlayPlay" onclick="togglePlayPreview()">
+                  ▶
+                </div>
+              </div>
+
+              <div class="player-controls">
+                <div class="player-buttons">
+                  <button id="btnPlayPause" class="btn-player primary" onclick="togglePlayPreview()">
+                    <span id="playIcon">▶</span>
+                    <span id="playText">Nghe Thử Đồng Bộ</span>
+                  </button>
+                  <button class="btn-player secondary" onclick="seekPreview(0)">
+                    <span>⏮ Về đầu</span>
+                  </button>
+                </div>
+
+                <div class="time-display">
+                  <span id="currentTimeText">00:00</span> / <span id="durationTimeText">00:00</span>
+                </div>
+
+                <!-- Audio Blend Options -->
+                <div class="audio-blend-options">
+                  <div class="option-row">
+                    <label for="musicVolume">Âm lượng nhạc gốc:</label>
+                    <input type="range" id="musicVolume" min="0" max="100" value="100" oninput="updateAudioVolumes()">
+                    <span id="musicVolText" class="val-text">100%</span>
+                  </div>
+                  
+                  <div class="option-row">
+                    <label for="roomVolume">Giữ tiếng phòng tập (tiếng hô, vỗ tay):</label>
+                    <input type="range" id="roomVolume" min="0" max="40" value="0" oninput="updateAudioVolumes()">
+                    <span id="roomVolText" class="val-text">0%</span>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Dedicated Trimming Card (Cắt gọt trước & sau video) -->
+          <div class="trim-card" id="trimCard">
+            <div class="trim-header">
+              <div class="trim-header-left">
+                <span class="trim-icon">✂️</span>
+                <div>
+                  <h4>CẮT GỌT ĐOẠN THỪA (ĐẦU & ĐUÔI VIDEO)</h4>
+                  <p>Tự động loại bỏ đoạn đứng chờ trước khi nhảy & đoạn thừa sau khi hết bài nhạc.</p>
+                </div>
+              </div>
+              <button type="button" class="btn-trim-reset" onclick="resetTrimToAuto()" title="Khôi phục cắt tự động theo bài nhạc">↺ Tự động cắt</button>
+            </div>
+
+            <div class="trim-grid">
+              <!-- Cột Trái: Đoạn Đầu (Trước khi nhảy) -->
+              <div class="trim-col">
+                <div class="trim-toggle-row">
+                  <label class="switch-wrap">
+                    <input type="checkbox" id="trimStartToggle" checked onchange="onTrimToggleChange()">
+                    <span class="switch-slider"></span>
+                  </label>
+                  <div class="trim-toggle-label">
+                    <strong>Cắt bỏ đoạn chờ đầu</strong>
+                    <span id="trimStartHint" class="trim-hint">Bỏ đoạn đứng chờ trước khi nhạc vào</span>
+                  </div>
+                </div>
+
+                <div class="trim-stepper-wrap" id="trimStartControls">
+                  <span class="stepper-label">Bắt đầu tại:</span>
+                  <div class="stepper-box">
+                    <button type="button" class="btn-step" onclick="adjustTrimStart(-0.5)">-0.5s</button>
+                    <input type="number" id="trimStartInput" value="0.0" step="0.1" min="0" onchange="onTrimInputChange()">
+                    <span class="step-unit">giây</span>
+                    <button type="button" class="btn-step" onclick="adjustTrimStart(0.5)">+0.5s</button>
+                  </div>
+                </div>
+
+                <div class="trim-quick-chips">
+                  <button type="button" class="chip-btn" onclick="setTrimStartPreset('auto')">🎯 Lúc vào nhạc</button>
+                  <button type="button" class="chip-btn" onclick="setTrimStartPreset('zero')">🎬 Từ đầu (0s)</button>
+                </div>
+              </div>
+
+              <!-- Cột Phải: Đoạn Đuôi (Sau khi nhảy xong) -->
+              <div class="trim-col">
+                <div class="trim-toggle-row">
+                  <label class="switch-wrap">
+                    <input type="checkbox" id="trimEndToggle" checked onchange="onTrimToggleChange()">
+                    <span class="switch-slider"></span>
+                  </label>
+                  <div class="trim-toggle-label">
+                    <strong>Cắt đoạn thừa cuối clip</strong>
+                    <span id="trimEndHint" class="trim-hint">Dừng đúng khi hết bài nhạc gốc</span>
+                  </div>
+                </div>
+
+                <div class="trim-stepper-wrap" id="trimEndControls">
+                  <span class="stepper-label">Kết thúc tại:</span>
+                  <div class="stepper-box">
+                    <button type="button" class="btn-step" onclick="adjustTrimEnd(-0.5)">-0.5s</button>
+                    <input type="number" id="trimEndInput" value="0.0" step="0.1" min="0" onchange="onTrimInputChange()">
+                    <span class="step-unit">giây</span>
+                    <button type="button" class="btn-step" onclick="adjustTrimEnd(0.5)">+0.5s</button>
+                  </div>
+                </div>
+
+                <div class="trim-quick-chips">
+                  <button type="button" class="chip-btn" onclick="setTrimEndPreset('auto')">🎯 Khi hết nhạc</button>
+                  <button type="button" class="chip-btn" onclick="setTrimEndPreset('full')">🎬 Hết clip quay</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Trimming Summary Bar -->
+            <div class="trim-summary-bar">
+              <div class="summary-info">
+                <span class="summary-icon">⏱️</span>
+                <div class="summary-texts">
+                  <div id="trimSummaryTitle" class="summary-title">Thời lượng video xuất: <strong id="trimSummaryDur">00:00</strong></div>
+                  <div id="trimSummaryBadges" class="summary-badges"></div>
+                </div>
+              </div>
+              <button type="button" class="btn-preview-trim" onclick="previewTrimmedRange()">
+                <span>▶ Nghe & xem thử đoạn cắt</span>
               </button>
             </div>
+          </div>
 
-            <div class="btn-again-wrap">
-              <button class="btn-link" onclick="resetAll()">🔄 Ghép một video khác</button>
+          <!-- Resolution & Quality Card -->
+          <div class="resolution-card">
+            <div class="resolution-header">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <h4>📐 CHẤT LƯỢNG & ĐỘ PHÂN GIẢI XUẤT VIDEO</h4>
+                <span id="detectedVideoBadge" class="trim-badge" style="display:none;background:rgba(0,229,255,0.15);color:var(--accent-cyan);border-color:rgba(0,229,255,0.3);">📱 Đang nhận diện video...</span>
+              </div>
+              <span class="res-subtext">Tùy chọn độ phân giải phù hợp cho mục đích sử dụng của bạn</span>
+            </div>
+
+            <div class="resolution-grid">
+              <label class="res-option-card active" id="resCardOriginal" onclick="selectResolutionMode('original')">
+                <input type="radio" name="resMode" value="original" checked>
+                <div class="res-card-body">
+                  <div class="res-card-title-row">
+                    <span class="res-icon">🌟</span>
+                    <span class="res-title" id="resTitleOriginal">Giữ Trọn 4K / Độ Phân Giải Gốc</span>
+                    <span class="badge-recommended" id="badgeOriginalMaster" style="background:linear-gradient(135deg, #00E5FF 0%, #0091EA 100%);color:#000;">MASTER QUALITY</span>
+                  </div>
+                  <p class="res-desc" id="resDescOriginal">
+                    Giữ 100% độ nét đỉnh cao từ camera iPhone (4K / 1080p, 60fps). Không bị hạ bất kỳ pixel nào, lưu trữ và chiếu màn hình lớn nét tuyệt đối.
+                  </p>
+                </div>
+              </label>
+
+              <label class="res-option-card" id="resCardTiktok" onclick="selectResolutionMode('tiktok_1080p')">
+                <input type="radio" name="resMode" value="tiktok_1080p">
+                <div class="res-card-body">
+                  <div class="res-card-title-row">
+                    <span class="res-icon">📱</span>
+                    <span class="res-title">Tối Ưu 1080p TikTok Ready</span>
+                    <span class="badge-recommended" style="background:var(--primary);color:#000;">CHO TIKTOK / REELS</span>
+                  </div>
+                  <p class="res-desc">
+                    Chuẩn hóa 1080x1920 (9:16), lọc nét viền Unsharp. Vì TikTok chỉ phát tối đa 1080p trên điện thoại, xuất bản này giúp file nhẹ hơn và tránh bị TikTok tự nén ẩu làm vỡ hạt.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Step 2 Final Action -->
+          <div class="action-footer" style="margin-top: 10px;">
+            <button class="btn-primary btn-cta-large" onclick="goToStep3()">
+              <span class="btn-icon">⚡</span>
+              <span>Tiếp tục: Xuất Video Hoàn Chỉnh ➔</span>
+            </button>
+          </div>
+
+        </section>
+
+        <!-- STEP 3: EXPORT & DOWNLOAD -->
+        <section id="step3" class="tool-step hidden">
+          <div class="export-card">
+            
+            <div id="exportProgressBox" class="export-progress-box">
+              <div class="export-spinner" id="exportSpinner">⚡</div>
+              <h3 id="exportStatusTitle">Đang ghép âm thanh vào video...</h3>
+              <p id="exportStatusDesc">Giữ nguyên luồng hình ảnh 100%, không bị nén lại. Chỉ mất vài giây!</p>
+              
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill" style="width: 15%"></div>
+              </div>
+              <span class="progress-pct" id="progressPctText">15%</span>
+              <button id="exportRetry" class="btn-secondary hidden" style="margin-top:16px" onclick="resetAll()">🔄 Thử lại từ đầu</button>
+            </div>
+
+            <!-- Result Area (Appears when ready) -->
+            <div id="exportResultBox" class="export-result-box hidden">
+              <div class="success-badge">🎉 ĐÃ GHÉP NHẠC THÀNH CÔNG!</div>
+              <h2>Video Của Bạn Đã Sẵn Sàng</h2>
+              <p>Nhạc chất lượng cao đã được căn khớp chuẩn từng mili-giây. Bạn có thể xem lại hoặc tải về ngay:</p>
+
+              <div class="result-video-wrap">
+                <video id="finalVideo" controls playsinline></video>
+              </div>
+
+              <div class="download-actions">
+                <a id="btnDownload" class="btn-primary btn-download" download="stylefit_synced_video.mp4">
+                  <span class="btn-icon">📥</span>
+                  <span>Tải Video Về Máy (MP4)</span>
+                </a>
+
+                <button id="btnShare" class="btn-secondary btn-share" onclick="shareVideo()">
+                  <span class="btn-icon">📱</span>
+                  <span>Lưu Vào Thư Viện / Đăng TikTok</span>
+                </button>
+              </div>
+
+              <div class="btn-again-wrap">
+                <button class="btn-link" onclick="resetAll()">🔄 Ghép một video khác</button>
+              </div>
+
             </div>
 
           </div>
+        </section>
 
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: STEP DANCE & LỢI ÍCH -->
+  <section class="features-section" id="step-dance">
+    <div class="container">
+      <div class="section-header-box">
+        <div class="section-mini-badge">💃 BỘ MÔN STEP DANCE HIỆN ĐẠI</div>
+        <h2 class="section-heading">Vì Sao Step Dance Tại StyleFit Trở Thành Cơn Sốt?</h2>
+        <p class="section-subtext">
+          Sự kết hợp hoàn hảo giữa <strong>nhịp điệu âm nhạc EDM/Remix bùng nổ</strong> và <strong>các động tác bục nhảy cardio đỉnh cao</strong> giúp bạn thay đổi vóc dáng từng ngày trong niềm vui hứng khởi.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon-wrap">🔥</div>
+          <h3>Đốt 600–800 Kcal Mỗi Buổi</h3>
+          <p>Chuyển động bước chân liên tục trên bục nhảy tác động sâu vào nhóm cơ mông, đùi và siết gọn vòng hai. Lượng calo tiêu hao gấp 2 lần chạy bộ thông thường.</p>
         </div>
-      </section>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrap">🎵</div>
+          <h3>Âm Nhạc Bùng Nổ · Xả Két Stress</h3>
+          <p>Quên đi áp lực công việc hàng ngày với những bản mix nhạc sôi động được biên đạo độc quyền bởi HLV DuyK StepHi. Mỗi buổi tập là một lễ hội âm nhạc tràn ngập năng lượng.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrap">👟</div>
+          <h3>Người Mới Tập Dễ Dàng Bắt Nhịp</h3>
+          <p>Không yêu cầu bạn phải có năng khiếu hay biết nhảy từ trước. Các tổ hợp bước bục được chia nhỏ từ cấp độ cơ bản nhất, HLV theo sát chỉnh từng bước chân.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrap">📊</div>
+          <h3>Quản Lý Chỉ Số Tanita Khoa Học</h3>
+          <p>Tập luyện có mục tiêu rõ ràng! Hội viên được đo quét chỉ số mỡ dưới da, mỡ nội tạng, khối lượng cơ và tuổi sinh học định kỳ, xem ngay trên Cổng Hội Viên.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: LỊCH TẬP & 2 CƠ SỞ TẠI HẢI PHÒNG -->
+  <section class="branches-section" id="co-so">
+    <div class="container">
+      <div class="section-header-box">
+        <div class="section-mini-badge">📍 KHÔNG GIAN STUDIO CAO CẤP</div>
+        <h2 class="section-heading">Lịch Tập & Hệ Thống 2 Cơ Sở Hải Phòng</h2>
+        <p class="section-subtext">Hệ thống phòng tập hiện đại, sàn gỗ chuyên dụng giảm chấn bảo vệ khớp gối, điều hòa mát lạnh và dàn âm thanh ánh sáng bùng nổ.</p>
+      </div>
+
+      <!-- Branch Switcher Tabs -->
+      <div class="branch-tabs">
+        <button class="branch-tab-btn active" onclick="switchBranch('thienloi', this)">
+          🏢 Cơ sở 1: Thiện Lộc / Thiên Lôi
+        </button>
+        <button class="branch-tab-btn" onclick="switchBranch('hongbang', this)">
+          🏢 Cơ sở 2: Hồng Bàng (Trung Tâm)
+        </button>
+      </div>
+
+      <!-- Branch 1: Thiên Lôi -->
+      <div id="branchThienLoi" class="branch-card active">
+        <div class="branch-grid">
+          <div class="branch-info">
+            <span class="branch-tag">CƠ SỞ 1</span>
+            <h3>StyleFit Thiện Lộc (Thiên Lôi)</h3>
+            <p class="branch-desc">Không gian tập luyện chuyên biệt cho Step Dance với sàn gỗ cao cấp, dàn bục tiêu chuẩn quốc tế và hệ thống âm thanh vòm sống động.</p>
+            
+            <ul class="branch-amenities">
+              <li>✨ Sàn gỗ giảm chấn bảo vệ cổ chân & khớp gối</li>
+              <li>❄️ Hệ thống điều hòa nhiệt độ luôn mát mẻ dễ chịu</li>
+              <li>🔊 Âm thanh công suất lớn, ánh sáng cảm xúc</li>
+              <li>🔐 Tủ gửi đồ cá nhân & nước uống miễn phí</li>
+            </ul>
+
+            <div class="branch-cta-row">
+              <a href="#dang-ky" class="btn-branch-register">🔥 Đăng Ký Tập Tại Cơ Sở 1</a>
+              <a href="https://zalo.me/0989000000" target="_blank" class="btn-branch-zalo">💬 Nhắn Zalo HLV</a>
+            </div>
+          </div>
+
+          <div class="branch-schedule-box">
+            <h4>📅 LỊCH CÁC CA TẬP TRONG NGÀY</h4>
+            <div class="schedule-table">
+              <div class="schedule-row header">
+                <span>Khung Giờ</span>
+                <span>Lớp Học</span>
+                <span>Cấp Độ</span>
+              </div>
+              <div class="schedule-row">
+                <span class="time">05:30 - 06:30</span>
+                <span class="class-name">Step Dance Sáng Sớm</span>
+                <span class="badge-level">Mọi Cấp Độ</span>
+              </div>
+              <div class="schedule-row">
+                <span class="time">06:30 - 07:30</span>
+                <span class="class-name">Morning Step Cardio</span>
+                <span class="badge-level">Cơ Bản / Giảm Mỡ</span>
+              </div>
+              <div class="schedule-row">
+                <span class="time">17:30 - 18:30</span>
+                <span class="class-name">Step Dance Tan Tầm</span>
+                <span class="badge-level">Sôi Động</span>
+              </div>
+              <div class="schedule-row hot">
+                <span class="time">18:30 - 19:30</span>
+                <span class="class-name">Step Dance VIP Remix</span>
+                <span class="badge-level highlight">Đông Vui Nhất</span>
+              </div>
+              <div class="schedule-row">
+                <span class="time">19:30 - 20:30</span>
+                <span class="class-name">Night Step Energy</span>
+                <span class="badge-level">Xả Két Stress</span>
+              </div>
+            </div>
+            <p class="schedule-note">💡 Hội viên được chọn ca tập linh hoạt giữa các ngày trong tuần.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Branch 2: Hồng Bàng -->
+      <div id="branchHongBang" class="branch-card hidden">
+        <div class="branch-grid">
+          <div class="branch-info">
+            <span class="branch-tag">CƠ SỞ 2</span>
+            <h3>StyleFit Hồng Bàng (Trung Tâm TP)</h3>
+            <p class="branch-desc">Tọa lạc tại khu vực trung tâm quận Hồng Bàng, thuận tiện giao thông đi lại cho học viên các tuyến phố nội thành Hải Phòng.</p>
+            
+            <ul class="branch-amenities">
+              <li>✨ Studio thiết kế phong cách Dark Luxury hiện đại</li>
+              <li>🚗 Bãi đỗ xe ô tô và xe máy rộng rãi, an ninh tốt</li>
+              <li>🔊 Hệ thống bục Step chống trượt chuyên dụng</li>
+              <li>🥤 Khu vực tư vấn dinh dưỡng và đo chỉ số Tanita</li>
+            </ul>
+
+            <div class="branch-cta-row">
+              <a href="#dang-ky" class="btn-branch-register">🔥 Đăng Ký Tập Tại Cơ Sở 2</a>
+              <a href="https://zalo.me/0989000000" target="_blank" class="btn-branch-zalo">💬 Nhắn Zalo HLV</a>
+            </div>
+          </div>
+
+          <div class="branch-schedule-box">
+            <h4>📅 LỊCH CÁC CA TẬP TRONG NGÀY</h4>
+            <div class="schedule-table">
+              <div class="schedule-row header">
+                <span>Khung Giờ</span>
+                <span>Lớp Học</span>
+                <span>Cấp Độ</span>
+              </div>
+              <div class="schedule-row">
+                <span class="time">06:00 - 07:00</span>
+                <span class="class-name">Khởi Động Năng Lượng</span>
+                <span class="badge-level">Mọi Cấp Độ</span>
+              </div>
+              <div class="schedule-row">
+                <span class="time">17:30 - 18:30</span>
+                <span class="class-name">Step Dance Bục Cơ Bản</span>
+                <span class="badge-level">Dễ Theo</span>
+              </div>
+              <div class="schedule-row hot">
+                <span class="time">18:30 - 19:30</span>
+                <span class="class-name">Step Dance Master Beat</span>
+                <span class="badge-level highlight">Đông Vui Nhất</span>
+              </div>
+              <div class="schedule-row">
+                <span class="time">19:30 - 20:30</span>
+                <span class="class-name">Step Dance Đốt Mỡ Nhanh</span>
+                <span class="badge-level">Cardio Cao Độ</span>
+              </div>
+            </div>
+            <p class="schedule-note">💡 Hội viên thẻ quý/năm được tập tự do cả 2 cơ sở mà không cần đóng thêm phí.</p>
+          </div>
+        </div>
+      </div>
 
     </div>
-  </main>
+  </section>
 
-  <!-- Brand Call To Action & Footer -->
+  <!-- SECTION: BẢNG GIÁ GÓI TẬP -->
+  <section class="pricing-section" id="bang-gia">
+    <div class="container">
+      <div class="section-header-box">
+        <div class="section-mini-badge">💎 BẢNG GIÁ MINH BẠCH</div>
+        <h2 class="section-heading">Lựa Chọn Gói Tập Phù Hợp Với Bạn</h2>
+        <p class="section-subtext">Đầu tư xứng đáng cho sức khỏe, vóc dáng và sự tự tin với chính sách giá tốt nhất tại Hải Phòng.</p>
+      </div>
+
+      <div class="pricing-grid">
+        
+        <!-- Plan 1: Tập Thử -->
+        <div class="price-card">
+          <div class="price-header">
+            <span class="plan-badge">DÀNH CHO NGƯỜI MỚI</span>
+            <h3>Buổi Trải Nghiệm</h3>
+            <div class="price-amount">
+              <span class="num">0đ</span>
+              <span class="period">/ 1 buổi</span>
+            </div>
+            <p class="price-desc">Trải nghiệm không gian, âm nhạc và bước bục trực tiếp trước khi quyết định đăng ký.</p>
+          </div>
+          <ul class="price-features">
+            <li>✅ 1 buổi tập Step Dance trọn vẹn</li>
+            <li>✅ HLV trực tiếp hướng dẫn kỹ thuật cơ bản</li>
+            <li>✅ Đo quét chỉ số cơ thể máy Tanita (mỡ & cơ)</li>
+            <li>✅ Tư vấn phân tích vóc dáng cá nhân hóa</li>
+          </ul>
+          <a href="#dang-ky" class="btn-price-card outline">Đăng Ký Tập Thử Ngay</a>
+        </div>
+
+        <!-- Plan 2: Gói Tháng -->
+        <div class="price-card">
+          <div class="price-header">
+            <span class="plan-badge">KHỞI ĐỘNG</span>
+            <h3>Thẻ 1 Tháng</h3>
+            <div class="price-amount">
+              <span class="num">Gói Tháng</span>
+              <span class="period">/ Không giới hạn</span>
+            </div>
+            <p class="price-desc">Thích hợp cho bạn bắt đầu làm quen và thiết lập thói quen vận động mỗi ngày.</p>
+          </div>
+          <ul class="price-features">
+            <li>✅ Tập không giới hạn số ca trong tháng</li>
+            <li>✅ Tùy chọn linh hoạt ca sáng hoặc ca tối</li>
+            <li>✅ Đo Tanita kiểm tra mỡ đầu vào & đầu ra</li>
+            <li>✅ Tham gia cộng đồng nhảy sôi động StyleFit</li>
+          </ul>
+          <a href="#dang-ky" class="btn-price-card outline">Nhận Tư Vấn Gói Tháng</a>
+        </div>
+
+        <!-- Plan 3: Gói Quý (Best Seller) -->
+        <div class="price-card featured">
+          <div class="featured-badge">🔥 ĐƯỢC CHỌN NHIỀU NHẤT</div>
+          <div class="price-header">
+            <span class="plan-badge orange">CHUYỂN HÓA VÓC DÁNG</span>
+            <h3>Thẻ 3 Tháng (Quý)</h3>
+            <div class="price-amount">
+              <span class="num">Ưu Đãi Quý</span>
+              <span class="period">/ Tiết kiệm 25%</span>
+            </div>
+            <p class="price-desc">Thời gian vàng 12 tuần giúp chuyển hóa rõ rệt: siết eo, săn chắc mông đùi, giảm 3-7kg mỡ.</p>
+          </div>
+          <ul class="price-features">
+            <li>✅ Tập tự do <strong>cả 2 cơ sở</strong> Thiên Lôi & Hồng Bàng</li>
+            <li>✅ Tài khoản riêng trên <strong>Cổng Hội Viên</strong> app.stylefit.vn</li>
+            <li>✅ Quét Tanita theo dõi tiến độ hàng tuần</li>
+            <li>✅ Tặng bộ thực đơn ăn uống khoa học giảm mỡ</li>
+            <li>✅ Tặng áo đồng phục tập luyện StyleFit</li>
+          </ul>
+          <a href="#dang-ky" class="btn-price-card primary">Đăng Ký Gói Quý Ưu Đãi</a>
+        </div>
+
+        <!-- Plan 4: Khóa HLV -->
+        <div class="price-card">
+          <div class="price-header">
+            <span class="plan-badge cyan">ĐÀO TẠO NGHỀ</span>
+            <h3>Khóa Đào Tạo HLV</h3>
+            <div class="price-amount">
+              <span class="num">Chứng Chỉ</span>
+              <span class="period">/ Master Coach</span>
+            </div>
+            <p class="price-desc">Dành cho học viên đam mê muốn trở thành Huấn luyện viên Step Dance chuyên nghiệp.</p>
+          </div>
+          <ul class="price-features">
+            <li>✅ Học trực tiếp cùng Master Coach DuyK StepHi</li>
+            <li>✅ Giáo trình cảm thụ nhịp nhạc & đếm beat chuẩn</li>
+            <li>✅ Kỹ thuật hô lệnh, dẫn dắt & khuấy động lớp</li>
+            <li>✅ Cấp chứng chỉ HLV StyleFit Studio</li>
+            <li>✅ Cơ hội đứng lớp & giảng dạy trong chuỗi</li>
+          </ul>
+          <a href="https://zalo.me/0989000000" target="_blank" class="btn-price-card outline">Liên Hệ HLV Trưởng</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: FORM ĐĂNG KÝ TẬP THỬ MIỄN PHÍ -->
+  <section class="lead-form-section" id="dang-ky">
+    <div class="container">
+      <div class="form-card-wrapper">
+        <div class="form-card-left">
+          <span class="form-badge">🔥 ƯU ĐÃI ĐẶC BIỆT THÁNG NÀY</span>
+          <h2>Đăng Ký Trải Nghiệm 1 Buổi Tập Thử Miễn Phí</h2>
+          <p>Hãy tự mình cảm nhận không khí bùng nổ, âm nhạc cuốn hút và sự chuyên nghiệp tại StyleFit Studio. Không mất bất kỳ chi phí nào!</p>
+          
+          <div class="form-benefits">
+            <div class="benefit-item">
+              <span class="b-icon">🎯</span>
+              <div>
+                <strong>Miễn phí đo máy Tanita</strong>
+                <span>Biết chính xác lượng mỡ thừa & độ khỏe cơ bắp</span>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <span class="b-icon">👟</span>
+              <div>
+                <strong>Có bục Step chuẩn sẵn sàng</strong>
+                <span>Chỉ cần mang giày thể thao và đồ tập thoải mái</span>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <span class="b-icon">⚡</span>
+              <div>
+                <strong>HLV hỗ trợ kèm riêng buổi đầu</strong>
+                <span>Tập nhẹ nhàng, an toàn, không lo bỡ ngỡ</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card-right">
+          <form id="leadRegisterForm" onsubmit="handleLeadSubmit(event)" class="lead-form">
+            <div class="form-group">
+              <label for="leadName">Họ và tên của bạn: <span class="req">*</span></label>
+              <input type="text" id="leadName" required placeholder="Ví dụ: Nguyễn Minh Thảo">
+            </div>
+
+            <div class="form-group">
+              <label for="leadPhone">Số điện thoại (hoặc Zalo): <span class="req">*</span></label>
+              <input type="tel" id="leadPhone" required placeholder="Ví dụ: 0912 345 678">
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="leadBranch">Cơ sở muốn tập:</label>
+                <select id="leadBranch">
+                  <option value="Thiên Lôi">Cơ sở 1: Thiện Lộc / Thiên Lôi</option>
+                  <option value="Hồng Bàng">Cơ sở 2: Hồng Bàng (Trung Tâm)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="leadTime">Khung giờ phù hợp:</label>
+                <select id="leadTime">
+                  <option value="Ca Sáng (05:30 - 07:30)">Ca Sáng (05:30 - 07:30)</option>
+                  <option value="Ca Chiều Tan Tầm (17:30 - 18:30)">Ca Chiều (17:30 - 18:30)</option>
+                  <option value="Ca Tối Đông Vui (18:30 - 19:30)" selected>Ca Tối (18:30 - 19:30)</option>
+                  <option value="Ca Đêm (19:30 - 20:30)">Ca Đêm (19:30 - 20:30)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="leadGoal">Mục tiêu của bạn:</label>
+              <select id="leadGoal">
+                <option value="Giảm mỡ toàn thân & Siết eo">Giảm mỡ toàn thân & Siết eo</option>
+                <option value="Giải tỏa stress & Rèn luyện sức khỏe">Giải tỏa stress & Rèn luyện sức khỏe</option>
+                <option value="Học nhảy Step Dance theo nhạc">Học nhảy Step Dance theo nhạc</option>
+                <option value="Muốn tìm hiểu làm Huấn luyện viên">Muốn tìm hiểu làm Huấn luyện viên</option>
+              </select>
+            </div>
+
+            <button type="submit" id="btnSubmitLead" class="btn-submit-lead">
+              <span class="btn-icon">🚀</span>
+              <span>GỬI ĐĂNG KÝ NGAY (GIỮ CHỖ 0Đ)</span>
+            </button>
+
+            <div id="leadFormFeedback" class="form-feedback hidden"></div>
+            <p class="form-security-note">🔒 Thông tin của bạn được bảo mật tuyệt đối. HLV sẽ liên hệ xác nhận giờ tập trong 15 phút.</p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: FAQ CÂU HỎI THƯỜNG GẶP -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-header-box">
+        <div class="section-mini-badge">❓ GIẢI ĐÁP THẮC MẮC</div>
+        <h2 class="section-heading">Câu Hỏi Thường Gặp Của Người Mới</h2>
+        <p class="section-subtext">Tất cả những gì bạn cần biết trước khi bước chân vào buổi tập đầu tiên tại StyleFit.</p>
+      </div>
+
+      <div class="faq-accordion-list">
+        
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>1. Tôi chưa từng nhảy hay tập thể thao bao giờ thì có theo được không?</span>
+            <span class="faq-arrow">▾</span>
+          </button>
+          <div class="faq-answer">
+            <p><strong>Hoàn toàn yên tâm bạn nhé!</strong> 80% hội viên đến với StyleFit ban đầu đều chưa từng nhảy. Các động tác bục Step được thiết kế khoa học, bắt đầu từ những bước đi nhịp cơ bản và có huấn luyện viên đứng cạnh kèm riêng từng nhịp cho bạn trong các buổi đầu.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>2. Đi tập Step Dance cần chuẩn bị những gì?</span>
+            <span class="faq-arrow">▾</span>
+          </button>
+          <div class="faq-answer">
+            <p>Bạn chỉ cần chuẩn bị một đôi <strong>giày thể thao êm chân</strong> (giày chạy hoặc giày tập đa năng) cùng trang phục co giãn thoải mái thấm hút mồ hôi. Bục tập, nước uống, điều hòa và tủ đồ cá nhân đã có sẵn tại phòng tập.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>3. Tập Step Dance có bị to bắp chân hay đau khớp gối không?</span>
+            <span class="faq-arrow">▾</span>
+          </button>
+          <div class="faq-answer">
+            <p><strong>Không hề bạn nhé!</strong> Sàn tập của StyleFit là sàn gỗ giảm chấn chuyên dụng, giúp hấp thụ lực phản hồi lên khớp gối. Động tác bục được HLV hướng dẫn chuẩn kỹ thuật đặt cả bàn chân tiếp xúc, giúp săn chắc cơ đùi, nâng cơ mông và thon gọn bắp chân rất đẹp.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>4. Sau bao lâu thì thấy hiệu quả giảm cân và siết eo rõ rệt?</span>
+            <span class="faq-arrow">▾</span>
+          </button>
+          <div class="faq-answer">
+            <p>Chỉ sau <strong>2 tuần đầu</strong> (khoảng 6 buổi tập), bạn sẽ cảm thấy cơ thể nhẹ nhõm, giấc ngủ ngon hơn và năng lượng tăng vọt. Sau <strong>4–8 tuần</strong> kết hợp với bảng chỉ số và hướng dẫn ăn uống của HLV, vòng eo giảm từ 3–6cm và cơ thể thon gọn thấy rõ.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>5. Tôi có được đổi ca tập linh hoạt giữa các ngày không?</span>
+            <span class="faq-arrow">▾</span>
+          </button>
+          <div class="faq-answer">
+            <p><strong>Có bạn nhé!</strong> StyleFit có nhiều khung giờ từ sáng sớm đến tối muộn. Bạn hoàn toàn có thể tập ca sáng hôm nay và chuyển sang ca tối hôm sau tùy thuộc vào lịch làm việc của bạn mà không phải báo trước.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FOUNDER & BRAND SHOWCASE -->
+  <section class="founder-section">
+    <div class="container founder-container">
+      <div class="founder-card">
+        <div class="founder-badge">FOUNDER & MASTER COACH</div>
+        <h2>HLV DuyK StepHi</h2>
+        <p class="founder-bio">
+          Người tiên phong phát triển phong trào <strong>Step Dance phong cách Stephi</strong> tại Hải Phòng. 
+          Với đam mê bất tận với âm nhạc và thể thao, HLV DuyK cùng đội ngũ StyleFit đã truyền cảm hứng thay đổi vóc dáng cho hàng nghìn học viên, tạo nên một cộng đồng nhảy năng động, tích cực và tràn đầy sức sống.
+        </p>
+        <div class="founder-actions">
+          <a href="https://www.tiktok.com/@duyk_stephi" target="_blank" class="btn-tiktok">
+            <span class="btn-icon">📱</span> Kênh TikTok @duyk_stephi
+          </a>
+          <a href="#ghep-nhac" class="btn-founder-tool">
+            <span class="btn-icon">🎵</span> Trải Nghiệm Ghép Nhạc Của HLV
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SITE FOOTER -->
   <footer class="site-footer">
     <div class="container footer-container">
       
@@ -449,26 +1028,30 @@
         <div class="cta-left">
           <img src="stylefit-badge.svg" alt="StyleFit Badge" class="cta-badge">
           <div>
-            <h3>StyleFit Step Dance & Fitness</h3>
-            <p>Cơ sở 1: Thiên Lôi · Cơ sở 2: Hồng Bàng, Hải Phòng</p>
+            <h3>StyleFit Step Dance & Fitness Studio</h3>
+            <p>Hệ thống phòng tập nhảy thể thao âm nhạc hàng đầu Hải Phòng</p>
+            <p class="footer-addresses">
+              📍 <strong>Cơ sở 1:</strong> Thiện Lộc / Thiên Lôi, Lê Chân, Hải Phòng<br>
+              📍 <strong>Cơ sở 2:</strong> Hồng Bàng (Trung tâm TP), Hải Phòng
+            </p>
           </div>
         </div>
         <div class="cta-right">
           <a href="https://stylefit-hp.netlify.app" target="_blank" class="btn-cta-secondary">Cổng Hội Viên</a>
-          <a href="https://www.tiktok.com/@duyk_stephi" target="_blank" class="btn-cta-primary">TikTok DuyK StepHi ➔</a>
+          <a href="#dang-ky" class="btn-cta-primary">Đăng Ký Tập Thử (0đ) ➔</a>
         </div>
       </div>
 
       <div class="footer-bottom">
-        <p>© 2026 StyleFit Fitness Studio. Công cụ phát triển miễn phí vì cộng đồng nhảy & fitness.</p>
-        <p class="tagline">Empowered by StyleFit Tech · Mini PC Host 24/7</p>
+        <p>© 2026 StyleFit Step Dance & Fitness. Mọi quyền được bảo lưu.</p>
+        <p class="tagline">Official Domain: <strong>stylefit.vn</strong> · Powered by StyleFit Tech & Mini PC 24/7</p>
       </div>
 
     </div>
   </footer>
 
   <!-- Scripts -->
-  <script src="sync-engine.js?v=2.7"></script>
-  <script src="app.js?v=2.7"></script>
+  <script src="sync-engine.js?v=3.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
