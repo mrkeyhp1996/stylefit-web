@@ -120,6 +120,33 @@ async def save_upload(up: UploadFile, dest: Path):
             f.write(chunk)
 
 
+@app.get("/api/upload_status")
+async def upload_status(sessionId: str, fileType: str):
+    """Check already uploaded chunks to support resumable uploads."""
+    if not sessionId.isalnum() or fileType not in ("goc", "nhay"):
+        raise HTTPException(status_code=400, detail="Thông số không hợp lệ")
+    sdir = UPLOADS_DIR / sessionId
+    if not sdir.exists():
+        return {"completed": False, "uploadedChunks": []}
+    
+    # Check if final file already assembled
+    for f in sdir.glob(f"{fileType}.*"):
+        if f.is_file():
+            return {"completed": True, "uploadedChunks": []}
+            
+    chunks_dir = sdir / f"chunks_{fileType}"
+    if not chunks_dir.exists():
+        return {"completed": False, "uploadedChunks": []}
+        
+    parts = []
+    for p in chunks_dir.glob("*.part"):
+        try:
+            parts.append(int(p.stem))
+        except ValueError:
+            pass
+    return {"completed": False, "uploadedChunks": sorted(parts)}
+
+
 @app.post("/api/upload_chunk")
 async def upload_chunk(
     sessionId: str = Form(...),
@@ -130,7 +157,7 @@ async def upload_chunk(
     chunk: UploadFile = File(...)
 ):
     """
-    Receive 10-15MB file chunk to bypass Cloudflare 100MB body limit.
+    Receive 10MB file chunk to bypass Cloudflare 100MB body limit safely on mobile networks.
     Reassembles into the final goc/nhay file once all chunks arrive.
     """
     if not sessionId.isalnum():
@@ -140,6 +167,19 @@ async def upload_chunk(
 
     sdir = UPLOADS_DIR / sessionId
     sdir.mkdir(parents=True, exist_ok=True)
+
+    # If final assembled file already exists, return completed immediately
+    for f in sdir.glob(f"{fileType}.*"):
+        if f.is_file():
+            return {
+                "ok": True,
+                "done": True,
+                "fileType": fileType,
+                "chunkIndex": chunkIndex,
+                "totalChunks": totalChunks,
+                "size": f.stat().st_size
+            }
+
     chunks_dir = sdir / f"chunks_{fileType}"
     chunks_dir.mkdir(parents=True, exist_ok=True)
 
