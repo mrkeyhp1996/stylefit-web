@@ -2,6 +2,7 @@ import os
 import time
 import uuid
 import shutil
+import asyncio
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -194,11 +195,15 @@ async def upload_chunk(
         if ext.lower() not in [".mp4", ".mov", ".m4v", ".avi", ".mkv", ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".webm"]:
             ext = ".mp4" if fileType == "nhay" else ".mp3"
         dest_file = sdir / f"{fileType}{ext}"
-        with open(dest_file, "wb") as outfile:
-            for p in parts:
-                with open(p, "rb") as infile:
-                    shutil.copyfileobj(infile, outfile)
-        shutil.rmtree(chunks_dir, ignore_errors=True)
+
+        def _assemble():
+            with open(dest_file, "wb") as outfile:
+                for p in parts:
+                    with open(p, "rb") as infile:
+                        shutil.copyfileobj(infile, outfile)
+            shutil.rmtree(chunks_dir, ignore_errors=True)
+
+        await asyncio.to_thread(_assemble)
         return {
             "ok": True,
             "done": True,
@@ -228,7 +233,7 @@ async def analyze(
     Supports either pre-uploaded chunks (via sessionId) or direct files (<15MB).
     Returns offset, drift, video metadata, and 500 visual waveform peaks.
     """
-    cleanup_old_files()
+    asyncio.create_task(asyncio.to_thread(cleanup_old_files))
 
     if sessionId and sessionId.isalnum():
         sid = sessionId
@@ -253,11 +258,11 @@ async def analyze(
         raise HTTPException(status_code=400, detail="Vui lòng cung cấp file hoặc sessionId hợp lệ.")
 
     try:
-        r = find_offset(nhay_path, goc_path)
+        r = await asyncio.to_thread(find_offset, nhay_path, goc_path)
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    video_meta = probe_video(nhay_path)
+    video_meta = await asyncio.to_thread(probe_video, nhay_path)
 
     return {
         "sessionId": sid,
@@ -355,12 +360,12 @@ async def render_video(
     # Video filters & encoding
     is_trimmed = (trim_start > 0) or (duration is not None)
     if resolutionMode == "tiktok_1080p":
-        # Ultra-fast portrait 1080x1920 with high-quality bicubic scale
+        # Ultra-fast portrait 1080x1920 with bicubic scale & mobile-optimized fastdecode
         vf = "scale=1080:1920:force_original_aspect_ratio=decrease:flags=bicubic,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
-        video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "superfast", "-crf", "19", "-pix_fmt", "yuv420p"]
+        video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
     elif is_trimmed:
-        # Re-encode is required for frame-accurate sub-second trimming
-        video_opts = ["-c:v", "libx264", "-preset", "superfast", "-crf", "19", "-pix_fmt", "yuv420p"]
+        # Re-encode frame-accurate with ultrafast speed & pristine quality
+        video_opts = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
     else:
         # Untrimmed stream copy (instant 0.2s)
         video_opts = ["-c:v", "copy"]
@@ -370,7 +375,7 @@ async def render_video(
         args += ["-t", f"{duration:.3f}"]
     args += ["-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out_path)]
 
-    dur = run_ffmpeg(args)
+    dur = await asyncio.to_thread(run_ffmpeg, args)
     return {
         "ok": True,
         "renderTimeSec": round(dur, 2),

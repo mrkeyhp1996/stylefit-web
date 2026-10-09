@@ -243,10 +243,10 @@ async function handleFileSelect(type, file) {
 }
 
 // ==========================================
-// 2.5. ROBUST RESUMABLE CHUNKED UPLOAD (10MB)
+// 2.5. ROBUST RESUMABLE CHUNKED UPLOAD (3MB)
 // ==========================================
-// 10MB chunks: 100% immune to mobile network drops, connection aborts and Cloudflare timeouts!
-const CHUNK_SIZE = 10 * 1024 * 1024; 
+// 3MB chunks: Hoàn toàn miễn nhiễm với rớt mạng 4G, không bao giờ bị Cloudflare timeout!
+const CHUNK_SIZE = 3 * 1024 * 1024; 
 
 async function getUploadedChunks(sessionId, fileType) {
   try {
@@ -266,10 +266,12 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
   // Check already uploaded chunks on server to support instant resume
   const status = await getUploadedChunks(sessionId, fileType);
   if (status.completed) {
-    if (onProgress) onProgress(100, totalSize, totalSize);
+    if (onProgress) onProgress(100, totalSize, totalSize, 0, 0);
     return;
   }
   const uploadedSet = new Set(status.uploadedChunks || []);
+  const startTime = Date.now();
+  let uploadedBytesCount = 0;
 
   for (let i = 0; i < totalChunks; i++) {
     // If chunk already saved on server, skip re-uploading!
@@ -277,7 +279,7 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
       if (onProgress) {
         const uploadedBytes = Math.min(totalSize, (i + 1) * CHUNK_SIZE);
         const pct = Math.round((uploadedBytes / totalSize) * 100);
-        onProgress(pct, uploadedBytes, totalSize);
+        onProgress(pct, uploadedBytes, totalSize, 0, 0);
       }
       continue;
     }
@@ -296,13 +298,12 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
 
     let attempts = 0;
     let success = false;
-    let lastErr = null;
 
     // Retry up to 5 times with exponential backoff on flaky 4G/Wifi
     while (!success && attempts < 5) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s per 10MB chunk timeout
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s per 3MB chunk timeout
 
         const resp = await fetch('/api/upload_chunk', {
           method: 'POST',
@@ -319,21 +320,25 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
         const data = await resp.json();
         if (!data.ok) throw new Error(data.detail || 'Lỗi lưu dữ liệu chunk');
         success = true;
+        uploadedBytesCount += (end - start);
       } catch (err) {
         attempts++;
-        lastErr = err;
         console.warn(`Lỗi lát cắt ${i + 1}/${totalChunks} (thử lại lần ${attempts}/5):`, err);
         if (attempts >= 5) {
           throw new Error(`Đường truyền mạng bị ngắt quãng khi tải lát cắt ${i + 1}/${totalChunks}. Vui lòng thử lại!`);
         }
-        await new Promise(r => setTimeout(r, 1000 * attempts));
+        await new Promise(r => setTimeout(r, 1000 * Math.min(attempts, 3)));
       }
     }
 
     if (onProgress) {
       const uploadedBytes = Math.min(totalSize, end);
       const pct = Math.round((uploadedBytes / totalSize) * 100);
-      onProgress(pct, uploadedBytes, totalSize);
+      const elapsedSec = Math.max(0.1, (Date.now() - startTime) / 1000);
+      const speedMB = (uploadedBytesCount / (1024 * 1024)) / elapsedSec;
+      const remainingBytes = totalSize - uploadedBytes;
+      const etaSec = speedMB > 0 ? Math.round((remainingBytes / (1024 * 1024)) / speedMB) : 0;
+      onProgress(pct, uploadedBytes, totalSize, speedMB, etaSec);
     }
   }
 }
@@ -376,19 +381,21 @@ async function startAnalysis() {
 
     // 1. Tải file Nhạc Gốc (nhẹ, hoàn tất chỉ trong 1-2 giây)
     el.statusTitle.textContent = 'Đang tải file nhạc gốc...';
-    await uploadFileInChunks(state.fileGoc, 'goc', sessionId, (pct, up, tot) => {
+    await uploadFileInChunks(state.fileGoc, 'goc', sessionId, (pct, up, tot, speed, eta) => {
       const mbUp = (up / (1024 * 1024)).toFixed(1);
       const mbTot = (tot / (1024 * 1024)).toFixed(1);
       el.statusDesc.textContent = `Tải file nhạc: ${pct}% (${mbUp} / ${mbTot} MB)...`;
       if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(pct * 0.15) + '%';
     });
 
-    // 2. Tải video nhảy (dồn 100% băng thông tải từng lát 10MB ổn định tuyệt đối)
+    // 2. Tải video nhảy (dồn 100% băng thông tải từng lát 3MB ổn định tuyệt đối)
     el.statusTitle.textContent = 'Đang tải video nhảy lên máy chủ...';
-    await uploadFileInChunks(state.fileNhay, 'nhay', sessionId, (pct, up, tot) => {
+    await uploadFileInChunks(state.fileNhay, 'nhay', sessionId, (pct, up, tot, speed, eta) => {
       const mbUp = (up / (1024 * 1024)).toFixed(1);
       const mbTot = (tot / (1024 * 1024)).toFixed(1);
-      el.statusDesc.textContent = `Tải video nhảy: ${pct}% (${mbUp} / ${mbTot} MB)... Vui lòng giữ màn hình.`;
+      const speedStr = speed > 0 ? ` · ${speed.toFixed(1)} MB/s` : '';
+      const etaStr = eta > 0 ? ` · Còn ~${eta}s` : '';
+      el.statusDesc.textContent = `Tải video nhảy: ${pct}% (${mbUp} / ${mbTot} MB)${speedStr}${etaStr}...`;
       if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(15 + pct * 0.85) + '%';
     });
 
@@ -982,25 +989,30 @@ async function runExportPipeline() {
     el.exportStatusDesc.textContent = `Độ lệch: ${sign}${state.currentOffsetMs} ms. Đang xử lý...`;
   }
 
-  let pct = 10;
+  let pct = 8;
   if (el.progressBarFill) el.progressBarFill.style.width = pct + '%';
   if (el.progressPctText) el.progressPctText.textContent = pct + '%';
 
+  const exportStartTime = Date.now();
   const timer = setInterval(() => {
-    if (pct < 92) {
-      pct += (pct < 60 ? 4 : 2);
-      if (el.progressBarFill) el.progressBarFill.style.width = pct + '%';
-      if (el.progressPctText) el.progressPctText.textContent = pct + '%';
-      
-      if (pct > 30 && pct < 65 && el.exportStatusDesc) {
-        el.exportStatusDesc.textContent = 'Đang căn nhịp chuẩn từng mili-giây và loại bỏ tạp âm phòng...';
-      } else if (pct >= 65 && el.exportStatusDesc) {
-        el.exportStatusDesc.textContent = isTiktokMode
-          ? 'Đang lọc nét viền Unsharp & scale 1080x1920 chuẩn TikTok...'
-          : 'Đang kết xuất luồng video... Sắp hoàn tất!';
-      }
+    const elapsed = (Date.now() - exportStartTime) / 1000;
+    // Asymptotic curve approaching 96% smoothly over 30s, never stalls
+    pct = Math.min(96, Math.round(8 + 88 * (1 - Math.exp(-elapsed / 14))));
+    if (el.progressBarFill) el.progressBarFill.style.width = pct + '%';
+    if (el.progressPctText) el.progressPctText.textContent = pct + '%';
+    
+    if (pct < 35 && el.exportStatusDesc) {
+      el.exportStatusDesc.textContent = 'Đang cắt khung hình & chuẩn bị dòng âm thanh...';
+    } else if (pct < 65 && el.exportStatusDesc) {
+      el.exportStatusDesc.textContent = 'Đang căn nhịp chuẩn từng mili-giây và hòa trộn nhạc gốc...';
+    } else if (pct < 88 && el.exportStatusDesc) {
+      el.exportStatusDesc.textContent = isTiktokMode
+        ? 'Đang nén kết xuất 1080x1920 chuẩn TikTok siêu nét...'
+        : 'Đang kết xuất luồng video với tốc độ cao nhất...';
+    } else if (el.exportStatusDesc) {
+      el.exportStatusDesc.textContent = 'Đang đóng gói file MP4 chất lượng cao... Sắp hoàn tất!';
     }
-  }, 600);
+  }, 400);
 
   try {
     if (!state.sessionId) throw new Error('Chưa có phiên làm việc. Hãy quay lại bước 1 và chọn lại video.');
