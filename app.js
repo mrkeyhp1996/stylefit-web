@@ -232,20 +232,37 @@ async function handleFileSelect(type, file) {
     }
   }
 
+  // Background pre-upload immediately upon file selection to eliminate wait time!
+  if (!state.sessionId) {
+    state.sessionId = 'sf' + Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+  }
+  startPreUpload(type, file, state.sessionId);
+
   // Check if both files ready -> Auto start analysis
   if (state.fileGoc && state.fileNhay) {
     el.btnStartAnalysis.disabled = false;
     el.btnStartAnalysis.innerHTML = '<span class="btn-icon">⚡</span><span>Đang Tự Động Phân Tích...</span>';
     setTimeout(() => {
       startAnalysis();
-    }, 400);
+    }, 300);
   }
 }
 
 // ==========================================
-// 2.5. CHUNKED UPLOAD (Bypasses Cloudflare 100MB limit)
+// 2.5. HIGH-SPEED CHUNKED & PARALLEL UPLOAD
 // ==========================================
-const CHUNK_SIZE = 12 * 1024 * 1024; // 12 MB chunks
+// 45MB chunk size: 100% safe with Cloudflare 100MB limit while reducing HTTP round-trips by 75%!
+const CHUNK_SIZE = 45 * 1024 * 1024; 
+
+function startPreUpload(type, file, sessionId) {
+  state['uploadedBytes' + type] = 0;
+  state['uploadTask' + type] = uploadFileInChunks(file, type.toLowerCase(), sessionId, (pct, up, tot) => {
+    state['uploadedBytes' + type] = up;
+    if (state.isAnalyzing && typeof updateCombinedProgress === 'function') {
+      updateCombinedProgress();
+    }
+  });
+}
 
 async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
   const totalSize = file.size;
@@ -286,16 +303,31 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
         attempts++;
         lastErr = err;
         if (attempts >= 3) throw lastErr;
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 600));
       }
     }
 
     if (onProgress) {
-      const uploadedBytes = Math.min(totalSize, (i + 1) * CHUNK_SIZE);
+      const uploadedBytes = Math.min(totalSize, end);
       const pct = Math.round((uploadedBytes / totalSize) * 100);
       onProgress(pct, uploadedBytes, totalSize);
     }
   }
+}
+
+function updateCombinedProgress() {
+  if (!state.fileGoc || !state.fileNhay) return;
+  const totalBytes = state.fileGoc.size + state.fileNhay.size;
+  const upGoc = state.uploadedBytesGoc || 0;
+  const upNhay = state.uploadedBytesNhay || 0;
+  const upTotal = Math.min(totalBytes, upGoc + upNhay);
+  const pct = Math.min(99, Math.round((upTotal / totalBytes) * 100));
+
+  const mbUp = (upTotal / (1024 * 1024)).toFixed(1);
+  const mbTot = (totalBytes / (1024 * 1024)).toFixed(1);
+  el.statusTitle.textContent = `Đang tải siêu tốc: ${pct}%...`;
+  el.statusDesc.textContent = `Đã tải ${mbUp} / ${mbTot} MB (2 luồng song song tốc độ cao)...`;
+  if (el.uploadProgressBar) el.uploadProgressBar.style.width = pct + '%';
 }
 
 // ==========================================
@@ -303,6 +335,7 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
 // ==========================================
 async function startAnalysis() {
   if (!state.fileGoc || !state.fileNhay) return;
+  state.isAnalyzing = true;
 
   // Switch to Step 2
   el.step1.classList.add('hidden');
@@ -319,46 +352,38 @@ async function startAnalysis() {
   el.playText.textContent = 'Đang đồng bộ...';
   el.btnOverlayPlay.style.display = 'none';
 
-  el.statusIcon.textContent = '⏳';
+  el.statusIcon.textContent = '⚡';
   el.statusTitle.textContent = 'Đang tải dữ liệu lên máy chủ...';
-  el.statusDesc.textContent = 'Hệ thống đang truyền file an toàn theo từng lát nhỏ (hỗ trợ video 4K/1080p dung lượng lớn)...';
-  el.confidenceBadge.textContent = 'Đang tải';
+  el.statusDesc.textContent = 'Tải 2 luồng song song tốc độ cao...';
+  el.confidenceBadge.textContent = 'Tốc độ cao';
   el.confidenceBadge.className = 'status-badge';
 
   if (el.uploadProgressWrap) el.uploadProgressWrap.classList.remove('hidden');
-  if (el.uploadProgressBar) el.uploadProgressBar.style.width = '0%';
+  updateCombinedProgress();
 
   try {
-    // Generate unique session ID for chunk uploads
-    const sessionId = 'sf' + Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
-    state.sessionId = sessionId;
+    const sessionId = state.sessionId;
 
-    // 1. Upload Music file (goc)
-    el.statusTitle.textContent = 'Đang tải nhạc gốc...';
-    await uploadFileInChunks(state.fileGoc, 'goc', sessionId, (pct, up, tot) => {
-      const mbUp = (up / (1024 * 1024)).toFixed(1);
-      const mbTot = (tot / (1024 * 1024)).toFixed(1);
-      el.statusDesc.textContent = `Tải file nhạc: ${pct}% (${mbUp}/${mbTot} MB)...`;
-      if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(pct * 0.3) + '%';
+    // Parallel Dual-Stream Transfer: Wait for both background pre-uploads to complete
+    const taskGoc = state.uploadTaskGoc || uploadFileInChunks(state.fileGoc, 'goc', sessionId, (pct, up) => {
+      state.uploadedBytesGoc = up;
+      updateCombinedProgress();
+    });
+    const taskNhay = state.uploadTaskNhay || uploadFileInChunks(state.fileNhay, 'nhay', sessionId, (pct, up) => {
+      state.uploadedBytesNhay = up;
+      updateCombinedProgress();
     });
 
-    // 2. Upload Dance video file (nhay)
-    el.statusTitle.textContent = 'Đang tải video nhảy...';
-    await uploadFileInChunks(state.fileNhay, 'nhay', sessionId, (pct, up, tot) => {
-      const mbUp = (up / (1024 * 1024)).toFixed(1);
-      const mbTot = (tot / (1024 * 1024)).toFixed(1);
-      el.statusDesc.textContent = `Tải video nhảy: ${pct}% (${mbUp}/${mbTot} MB)...`;
-      if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(30 + pct * 0.7) + '%';
-    });
+    await Promise.all([taskGoc, taskNhay]);
 
     if (el.uploadProgressBar) el.uploadProgressBar.style.width = '100%';
     setTimeout(() => {
       if (el.uploadProgressWrap) el.uploadProgressWrap.classList.add('hidden');
-    }, 400);
+    }, 300);
 
-    // 3. Trigger server analysis (FFmpeg + Normalized Cross-Correlation)
-    el.statusTitle.textContent = 'Đang phân tích bước sóng & nhịp điệu...';
-    el.statusDesc.textContent = 'Máy chủ đang quét toàn bộ âm thanh để tìm thời điểm khớp chuẩn xác mili-giây...';
+    // Trigger server analysis (FFmpeg Multi-thread + Normalized Cross-Correlation)
+    el.statusTitle.textContent = 'Đang dò nhịp & tính bước sóng...';
+    el.statusDesc.textContent = 'Máy chủ đang quét toàn bộ âm thanh chuẩn mili-giây...';
     el.confidenceBadge.textContent = 'Đang dò nhịp';
 
     const fd = new FormData();

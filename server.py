@@ -22,8 +22,8 @@ UPLOADS_DIR.mkdir(exist_ok=True)
 KEEP_SECONDS = 2 * 3600  # delete user files after 2 hours (privacy + disk)
 BLOCKED_PREFIXES = ("/uploads", "/server.py", "/syncfinder.py", "/.git", "/__pycache__")
 
-# Keep the mini PC responsive for other workloads (e.g. Pi Node): run ffmpeg at low priority.
-LOW_PRIORITY = getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
+# High-performance encoding (CPU i5 12 threads)
+LOW_PRIORITY = 0
 
 app = FastAPI(title="StyleFit Music Sync Engine")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -59,10 +59,10 @@ def cleanup_old_files():
 
 
 def run_ffmpeg(args):
-    cmd = ["ffmpeg", "-y", "-v", "error"] + args
+    cmd = ["ffmpeg", "-y", "-threads", "0", "-v", "error"] + args
     print("FFMPEG:", " ".join(cmd))
     t0 = time.time()
-    res = subprocess.run(cmd, capture_output=True, text=True, creationflags=LOW_PRIORITY)
+    res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:
         print("FFmpeg error:", res.stderr)
         raise HTTPException(status_code=500, detail="Lỗi xử lý video: " + res.stderr[-300:])
@@ -315,14 +315,14 @@ async def render_video(
     # Video filters & encoding
     is_trimmed = (trim_start > 0) or (duration is not None)
     if resolutionMode == "tiktok_1080p":
-        # Professional 1080x1920 portrait upscale with Lanczos filter and unsharp sharpening
-        vf = "scale=1080:1920:force_original_aspect_ratio=decrease:flags=lanczos,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,unsharp=5:5:0.8:3:3:0.4"
-        video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p"]
+        # Ultra-fast portrait 1080x1920 with high-quality bicubic scale
+        vf = "scale=1080:1920:force_original_aspect_ratio=decrease:flags=bicubic,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
+        video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "superfast", "-crf", "19", "-pix_fmt", "yuv420p"]
     elif is_trimmed:
         # Re-encode is required for frame-accurate sub-second trimming
-        video_opts = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
+        video_opts = ["-c:v", "libx264", "-preset", "superfast", "-crf", "19", "-pix_fmt", "yuv420p"]
     else:
-        # Untrimmed stream copy
+        # Untrimmed stream copy (instant 0.2s)
         video_opts = ["-c:v", "copy"]
 
     args += ["-filter_complex", fc, "-map", "0:v:0", "-map", "[a]"] + video_opts

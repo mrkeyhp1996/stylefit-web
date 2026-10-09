@@ -17,8 +17,8 @@ SR = 8000
 
 
 def decode_audio(path, sr=SR):
-    """Decode any media file to mono float32 at `sr` using ffmpeg."""
-    cmd = ["ffmpeg", "-v", "error", "-i", str(path), "-vn", "-ac", "1",
+    """Decode any media file to mono float32 at `sr` using ffmpeg with maximum multi-thread speed."""
+    cmd = ["ffmpeg", "-v", "error", "-threads", "0", "-i", str(path), "-vn", "-sn", "-ac", "1",
            "-ar", str(sr), "-f", "f32le", "-"]
     out = subprocess.run(cmd, capture_output=True)
     if out.returncode != 0 or not out.stdout:
