@@ -196,22 +196,28 @@ async def upload_chunk(
             ext = ".mp4" if fileType == "nhay" else ".mp3"
         dest_file = sdir / f"{fileType}{ext}"
 
-        def _assemble():
-            with open(dest_file, "wb") as outfile:
-                for p in parts:
-                    with open(p, "rb") as infile:
-                        shutil.copyfileobj(infile, outfile)
-            shutil.rmtree(chunks_dir, ignore_errors=True)
+        if not dest_file.exists():
+            def _assemble():
+                if dest_file.exists():
+                    return
+                with open(dest_file, "wb") as outfile:
+                    for p in parts:
+                        if p.exists():
+                            with open(p, "rb") as infile:
+                                shutil.copyfileobj(infile, outfile)
+                shutil.rmtree(chunks_dir, ignore_errors=True)
 
-        await asyncio.to_thread(_assemble)
-        return {
-            "ok": True,
-            "done": True,
-            "fileType": fileType,
-            "chunkIndex": chunkIndex,
-            "totalChunks": totalChunks,
-            "size": dest_file.stat().st_size
-        }
+            await asyncio.to_thread(_assemble)
+
+        if dest_file.exists():
+            return {
+                "ok": True,
+                "done": True,
+                "fileType": fileType,
+                "chunkIndex": chunkIndex,
+                "totalChunks": totalChunks,
+                "size": dest_file.stat().st_size
+            }
 
     return {
         "ok": True,

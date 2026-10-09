@@ -271,20 +271,33 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
   }
   const uploadedSet = new Set(status.uploadedChunks || []);
   const startTime = Date.now();
+  
+  // Calculate initial uploaded bytes from already uploaded chunks
   let uploadedBytesCount = 0;
+  for (let idx of uploadedSet) {
+    const s = idx * CHUNK_SIZE;
+    const e = Math.min(totalSize, s + CHUNK_SIZE);
+    uploadedBytesCount += (e - s);
+  }
 
+  // Build queue of remaining chunks to upload
+  const queue = [];
   for (let i = 0; i < totalChunks; i++) {
-    // If chunk already saved on server, skip re-uploading!
-    if (uploadedSet.has(i)) {
-      if (onProgress) {
-        const uploadedBytes = Math.min(totalSize, (i + 1) * CHUNK_SIZE);
-        const pct = Math.round((uploadedBytes / totalSize) * 100);
-        onProgress(pct, uploadedBytes, totalSize, 0, 0);
-      }
-      continue;
+    if (!uploadedSet.has(i)) {
+      queue.push(i);
     }
+  }
 
-    const start = i * CHUNK_SIZE;
+  if (queue.length === 0) {
+    if (onProgress) onProgress(100, totalSize, totalSize, 0, 0);
+    return;
+  }
+
+  let completedChunks = uploadedSet.size;
+  let activeError = null;
+
+  async function uploadChunkWorker(chunkIndex) {
+    const start = chunkIndex * CHUNK_SIZE;
     const end = Math.min(totalSize, start + CHUNK_SIZE);
     const chunkBlob = file.slice(start, end);
 
@@ -292,18 +305,18 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
     formData.append('sessionId', sessionId);
     formData.append('fileType', fileType);
     formData.append('fileName', file.name);
-    formData.append('chunkIndex', i.toString());
+    formData.append('chunkIndex', chunkIndex.toString());
     formData.append('totalChunks', totalChunks.toString());
     formData.append('chunk', chunkBlob, file.name);
 
     let attempts = 0;
     let success = false;
 
-    // Retry up to 5 times with exponential backoff on flaky 4G/Wifi
     while (!success && attempts < 5) {
+      if (activeError) throw activeError;
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s per 3MB chunk timeout
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout per 3MB chunk
 
         const resp = await fetch('/api/upload_chunk', {
           method: 'POST',
@@ -320,27 +333,48 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
         const data = await resp.json();
         if (!data.ok) throw new Error(data.detail || 'Lỗi lưu dữ liệu chunk');
         success = true;
-        uploadedBytesCount += (end - start);
       } catch (err) {
         attempts++;
-        console.warn(`Lỗi lát cắt ${i + 1}/${totalChunks} (thử lại lần ${attempts}/5):`, err);
+        console.warn(`Lỗi lát cắt ${chunkIndex + 1}/${totalChunks} (thử lại lần ${attempts}/5):`, err);
         if (attempts >= 5) {
-          throw new Error(`Đường truyền mạng bị ngắt quãng khi tải lát cắt ${i + 1}/${totalChunks}. Vui lòng thử lại!`);
+          activeError = new Error(`Đường truyền mạng bị ngắt quãng khi tải lát cắt ${chunkIndex + 1}/${totalChunks}. Vui lòng thử lại!`);
+          throw activeError;
         }
         await new Promise(r => setTimeout(r, 1000 * Math.min(attempts, 3)));
       }
     }
 
+    uploadedBytesCount += (end - start);
+    completedChunks++;
+
     if (onProgress) {
-      const uploadedBytes = Math.min(totalSize, end);
-      const pct = Math.round((uploadedBytes / totalSize) * 100);
+      const pct = Math.min(100, Math.round((completedChunks / totalChunks) * 100));
       const elapsedSec = Math.max(0.1, (Date.now() - startTime) / 1000);
       const speedMB = (uploadedBytesCount / (1024 * 1024)) / elapsedSec;
-      const remainingBytes = totalSize - uploadedBytes;
+      const remainingBytes = Math.max(0, totalSize - uploadedBytesCount);
       const etaSec = speedMB > 0 ? Math.round((remainingBytes / (1024 * 1024)) / speedMB) : 0;
-      onProgress(pct, uploadedBytes, totalSize, speedMB, etaSec);
+      onProgress(pct, uploadedBytesCount, totalSize, speedMB, etaSec);
     }
   }
+
+  // Chạy 2 luồng song song (Dual-Stream) tận dụng tối đa băng thông HTTP/2 và đường truyền 4G
+  const CONCURRENCY = Math.min(2, queue.length);
+  async function worker() {
+    while (queue.length > 0) {
+      if (activeError) throw activeError;
+      const nextIdx = queue.shift();
+      if (nextIdx !== undefined) {
+        await uploadChunkWorker(nextIdx);
+      }
+    }
+  }
+
+  const workers = [];
+  for (let c = 0; c < CONCURRENCY; c++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  if (activeError) throw activeError;
 }
 
 // ==========================================
