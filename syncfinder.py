@@ -70,10 +70,25 @@ def _norm_xcorr(a, b, sr=SR, min_overlap_s=6.0, beta=0.7):
     return lags, score
 
 
+def extract_peaks(samples, num_bins=500):
+    """Compute normalized peak amplitudes (0.0 to 1.0) for visual waveform display."""
+    if len(samples) == 0:
+        return [0.0] * num_bins
+    bin_size = len(samples) // num_bins
+    if bin_size == 0:
+        return [round(float(abs(s)), 3) for s in samples[:num_bins]]
+    matrix = np.abs(samples[:num_bins * bin_size]).reshape((num_bins, bin_size))
+    peaks = np.max(matrix, axis=1)
+    m = float(np.max(peaks)) if np.max(peaks) > 0 else 1.0
+    return [round(float(p / m), 3) for p in peaks]
+
+
 def find_offset(dance_path, original_path, sr=SR):
-    """Return dict(offset_ms, confidence, drift_ms, ...)."""
-    dance = _prep(decode_audio(dance_path, sr), sr)
-    orig = _prep(decode_audio(original_path, sr), sr)
+    """Return dict(offset_ms, confidence, drift_ms, dance_peaks, original_peaks...)."""
+    dance_raw = decode_audio(dance_path, sr)
+    orig_raw = decode_audio(original_path, sr)
+    dance = _prep(dance_raw, sr)
+    orig = _prep(orig_raw, sr)
 
     lags, score = _norm_xcorr(dance, orig, sr)
     best = int(np.argmax(score))
@@ -116,6 +131,8 @@ def find_offset(dance_path, original_path, sr=SR):
         "drift_ms": None if drift_ms is None else round(drift_ms, 1),
         "dance_duration": round(len(dance) / sr, 2),
         "original_duration": round(len(orig) / sr, 2),
+        "dance_peaks": extract_peaks(dance_raw, 500),
+        "original_peaks": extract_peaks(orig_raw, 500),
     }
 
 

@@ -226,7 +226,7 @@
               <p class="card-desc">Video tải từ TikTok, YouTube hoặc file MP3/MP4 có nhạc to, rõ, chất lượng cao.</p>
               
               <div class="drop-zone" id="dropGoc" onclick="document.getElementById('inputGoc').click()">
-                <input type="file" id="inputGoc" accept="video/*,audio/*" style="display:none">
+                <input type="file" id="inputGoc" accept="video/*,audio/*" style="display:none" onclick="event.stopPropagation()">
                 <div class="drop-content" id="dropContentGoc">
                   <div class="upload-art">📂</div>
                   <div class="drop-text">
@@ -256,7 +256,7 @@
               <p class="card-desc">Video bạn quay bằng điện thoại tại phòng tập (có thu tiếng nhạc loa, tiếng hô...).</p>
               
               <div class="drop-zone" id="dropNhay" onclick="document.getElementById('inputNhay').click()">
-                <input type="file" id="inputNhay" accept="video/*" style="display:none">
+                <input type="file" id="inputNhay" accept="video/*" style="display:none" onclick="event.stopPropagation()">
                 <div class="drop-content" id="dropContentNhay">
                   <div class="upload-art">🎬</div>
                   <div class="drop-text">
@@ -294,6 +294,9 @@
             <div class="status-details">
               <h4 id="statusTitle">Đang phân tích bước sóng âm thanh...</h4>
               <p id="statusDesc">Hệ thống đang trích xuất nhịp bass và phổ tần số để tìm độ lệch...</p>
+              <div id="uploadProgressWrap" class="hidden" style="margin-top: 8px; width: 100%; background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; overflow: hidden;">
+                <div id="uploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #FE7409, #FF9100); transition: width 0.2s ease;"></div>
+              </div>
             </div>
             <div class="status-badge" id="confidenceBadge">Đang đo</div>
           </div>
@@ -340,6 +343,7 @@
               
               <div class="video-container">
                 <video id="previewVideo" playsinline muted></video>
+                <audio id="previewAudioGoc" playsinline preload="auto" style="display:none"></audio>
                 <div class="video-overlay-play" id="btnOverlayPlay" onclick="togglePlayPreview()">
                   ▶
                 </div>

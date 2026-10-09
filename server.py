@@ -120,19 +120,97 @@ async def save_upload(up: UploadFile, dest: Path):
             f.write(chunk)
 
 
+@app.post("/api/upload_chunk")
+async def upload_chunk(
+    sessionId: str = Form(...),
+    fileType: str = Form(...),
+    fileName: str = Form(...),
+    chunkIndex: int = Form(...),
+    totalChunks: int = Form(...),
+    chunk: UploadFile = File(...)
+):
+    """
+    Receive 10-15MB file chunk to bypass Cloudflare 100MB body limit.
+    Reassembles into the final goc/nhay file once all chunks arrive.
+    """
+    if not sessionId.isalnum():
+        raise HTTPException(status_code=400, detail="sessionId không hợp lệ")
+    if fileType not in ("goc", "nhay"):
+        raise HTTPException(status_code=400, detail="fileType không hợp lệ")
+
+    sdir = UPLOADS_DIR / sessionId
+    sdir.mkdir(parents=True, exist_ok=True)
+    chunks_dir = sdir / f"chunks_{fileType}"
+    chunks_dir.mkdir(parents=True, exist_ok=True)
+
+    part_file = chunks_dir / f"{chunkIndex:05d}.part"
+    with open(part_file, "wb") as f:
+        while content := await chunk.read(1024 * 1024):
+            f.write(content)
+
+    parts = sorted(list(chunks_dir.glob("*.part")))
+    if len(parts) == totalChunks:
+        ext = Path(fileName).suffix or (".mp3" if fileType == "goc" else ".mp4")
+        if ext.lower() not in [".mp4", ".mov", ".m4v", ".avi", ".mkv", ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".webm"]:
+            ext = ".mp4" if fileType == "nhay" else ".mp3"
+        dest_file = sdir / f"{fileType}{ext}"
+        with open(dest_file, "wb") as outfile:
+            for p in parts:
+                with open(p, "rb") as infile:
+                    shutil.copyfileobj(infile, outfile)
+        shutil.rmtree(chunks_dir, ignore_errors=True)
+        return {
+            "ok": True,
+            "done": True,
+            "fileType": fileType,
+            "chunkIndex": chunkIndex,
+            "totalChunks": totalChunks,
+            "size": dest_file.stat().st_size
+        }
+
+    return {
+        "ok": True,
+        "done": False,
+        "fileType": fileType,
+        "chunkIndex": chunkIndex,
+        "totalChunks": totalChunks
+    }
+
+
 @app.post("/api/analyze")
-async def analyze(fileGoc: UploadFile = File(...), fileNhay: UploadFile = File(...)):
-    """Upload both videos once, find the offset over the WHOLE audio, keep files for render."""
+async def analyze(
+    sessionId: Optional[str] = Form(None),
+    fileGoc: Optional[UploadFile] = File(None),
+    fileNhay: Optional[UploadFile] = File(None)
+):
+    """
+    Analyze dance and music audio offset.
+    Supports either pre-uploaded chunks (via sessionId) or direct files (<15MB).
+    Returns offset, drift, video metadata, and 500 visual waveform peaks.
+    """
     cleanup_old_files()
-    sid = uuid.uuid4().hex[:12]
-    sdir = UPLOADS_DIR / sid
-    sdir.mkdir()
-    ext_g = Path(fileGoc.filename or "goc.mp4").suffix or ".mp4"
-    ext_n = Path(fileNhay.filename or "nhay.mp4").suffix or ".mp4"
-    goc_path = sdir / f"goc{ext_g}"
-    nhay_path = sdir / f"nhay{ext_n}"
-    await save_upload(fileGoc, goc_path)
-    await save_upload(fileNhay, nhay_path)
+
+    if sessionId and sessionId.isalnum():
+        sid = sessionId
+        sdir = UPLOADS_DIR / sid
+        if not sdir.exists():
+            raise HTTPException(status_code=404, detail="Phiên làm việc không tồn tại hoặc đã hết hạn.")
+        goc_path = next(iter(sdir.glob("goc.*")), None)
+        nhay_path = next(iter(sdir.glob("nhay.*")), None)
+        if not goc_path or not nhay_path:
+            raise HTTPException(status_code=400, detail="Chưa nhận đủ file nhạc gốc và video nhảy.")
+    elif fileGoc and fileNhay:
+        sid = uuid.uuid4().hex[:12]
+        sdir = UPLOADS_DIR / sid
+        sdir.mkdir(parents=True, exist_ok=True)
+        ext_g = Path(fileGoc.filename or "goc.mp4").suffix or ".mp4"
+        ext_n = Path(fileNhay.filename or "nhay.mp4").suffix or ".mp4"
+        goc_path = sdir / f"goc{ext_g}"
+        nhay_path = sdir / f"nhay{ext_n}"
+        await save_upload(fileGoc, goc_path)
+        await save_upload(fileNhay, nhay_path)
+    else:
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp file hoặc sessionId hợp lệ.")
 
     try:
         r = find_offset(nhay_path, goc_path)
@@ -149,6 +227,8 @@ async def analyze(fileGoc: UploadFile = File(...), fileNhay: UploadFile = File(.
         "driftMs": r["drift_ms"],
         "danceDuration": r["dance_duration"],
         "originalDuration": r["original_duration"],
+        "dancePeaks": r.get("dance_peaks"),
+        "originalPeaks": r.get("original_peaks"),
         "videoMeta": video_meta,
     }
 

@@ -7,9 +7,10 @@
 const state = {
   fileGoc: null,
   fileNhay: null,
+  urlGocAudio: null,
+  urlNhayVideo: null,
   bufferGoc: null,
   bufferNhay: null,
-  urlNhayVideo: null,
   autoOffsetMs: 0,
   currentOffsetMs: 0,
   confidence: 0,
@@ -27,7 +28,8 @@ const state = {
   trimStartSec: 0,
   trimEndSec: 0,
   resolutionMode: 'tiktok_1080p',
-  trimPreviewTimer: null
+  trimPreviewTimer: null,
+  previewAudioTimeout: null
 };
 
 // DOM Elements
@@ -58,12 +60,15 @@ const el = {
   statusTitle: document.getElementById('statusTitle'),
   statusDesc: document.getElementById('statusDesc'),
   confidenceBadge: document.getElementById('confidenceBadge'),
+  uploadProgressWrap: document.getElementById('uploadProgressWrap'),
+  uploadProgressBar: document.getElementById('uploadProgressBar'),
 
   waveformCanvas: document.getElementById('waveformCanvas'),
   playhead: document.getElementById('playhead'),
   offsetInput: document.getElementById('offsetInput'),
 
   previewVideo: document.getElementById('previewVideo'),
+  previewAudioGoc: document.getElementById('previewAudioGoc'),
   btnOverlayPlay: document.getElementById('btnOverlayPlay'),
   btnPlayPause: document.getElementById('btnPlayPause'),
   playIcon: document.getElementById('playIcon'),
@@ -193,35 +198,103 @@ async function handleFileSelect(type, file) {
   state['file' + type] = file;
   
   el['fileName' + type].textContent = file.name;
-  el['fileMeta' + type].textContent = `Đang đọc... · ${formatBytes(file.size)}`;
   el['dropContent' + type].classList.add('hidden');
   el['preview' + type].classList.remove('hidden');
 
-  // If it is dance video, create URL for preview player
   if (type === 'Nhay') {
+    // Dance video: Use native HTML5 video element with hardware GPU acceleration.
+    // NEVER decode giant video files via Web Audio API in browser to prevent memory freeze/hang.
     if (state.urlNhayVideo) URL.revokeObjectURL(state.urlNhayVideo);
     state.urlNhayVideo = URL.createObjectURL(file);
     el.previewVideo.src = state.urlNhayVideo;
+    el.fileMetaNhay.textContent = `Video sẵn sàng · ${formatBytes(file.size)}`;
+
+    el.previewVideo.onloadedmetadata = () => {
+      state.danceDuration = el.previewVideo.duration;
+      el.fileMetaNhay.textContent = `${formatSeconds(el.previewVideo.duration)} · ${formatBytes(file.size)}`;
+    };
+  } else {
+    // Original music source
+    if (state.urlGocAudio) URL.revokeObjectURL(state.urlGocAudio);
+    state.urlGocAudio = URL.createObjectURL(file);
+    if (el.previewAudioGoc) el.previewAudioGoc.src = state.urlGocAudio;
+    el.fileMetaGoc.textContent = `Âm thanh sẵn sàng · ${formatBytes(file.size)}`;
+
+    // Try background decode only for small music files (< 35MB) to enable precise WebAudio preview
+    if (file.size <= 35 * 1024 * 1024) {
+      state.syncEngine.decodeFile(file).then(buffer => {
+        state.bufferGoc = buffer;
+        state.originalDuration = buffer.duration;
+        el.fileMetaGoc.textContent = `${formatSeconds(buffer.duration)} · ${formatBytes(file.size)}`;
+      }).catch(err => {
+        console.warn('WebAudio decode goc warning (HTML5 audio fallback will be used):', err);
+      });
+    }
   }
 
-  // Decode audio in background
-  try {
-    const buffer = await state.syncEngine.decodeFile(file);
-    state['buffer' + type] = buffer;
-    el['fileMeta' + type].textContent = `${formatSeconds(buffer.duration)} · ${formatBytes(file.size)}`;
-  } catch (err) {
-    console.warn(`Lỗi đọc audio track từ file ${type}:`, err);
-    el['fileMeta' + type].textContent = `File hợp lệ · ${formatBytes(file.size)}`;
-  }
-
-  // Check if both files ready -> Auto start analysis without requiring button click!
+  // Check if both files ready -> Auto start analysis
   if (state.fileGoc && state.fileNhay) {
     el.btnStartAnalysis.disabled = false;
     el.btnStartAnalysis.innerHTML = '<span class="btn-icon">⚡</span><span>Đang Tự Động Phân Tích...</span>';
-    // Automatically trigger analysis
     setTimeout(() => {
       startAnalysis();
     }, 400);
+  }
+}
+
+// ==========================================
+// 2.5. CHUNKED UPLOAD (Bypasses Cloudflare 100MB limit)
+// ==========================================
+const CHUNK_SIZE = 12 * 1024 * 1024; // 12 MB chunks
+
+async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
+  const totalSize = file.size;
+  const totalChunks = Math.max(1, Math.ceil(totalSize / CHUNK_SIZE));
+
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(totalSize, start + CHUNK_SIZE);
+    const chunkBlob = file.slice(start, end);
+
+    const formData = new FormData();
+    formData.append('sessionId', sessionId);
+    formData.append('fileType', fileType);
+    formData.append('fileName', file.name);
+    formData.append('chunkIndex', i.toString());
+    formData.append('totalChunks', totalChunks.toString());
+    formData.append('chunk', chunkBlob, file.name);
+
+    let attempts = 0;
+    let success = false;
+    let lastErr = null;
+
+    while (!success && attempts < 3) {
+      try {
+        const resp = await fetch('/api/upload_chunk', {
+          method: 'POST',
+          body: formData
+        });
+        if (!resp.ok) {
+          let errDetail = resp.statusText;
+          try { errDetail = (await resp.json()).detail || errDetail; } catch (e) {}
+          throw new Error(errDetail);
+        }
+        const data = await resp.json();
+        if (!data.ok) throw new Error(data.detail || 'Lỗi lưu dữ liệu chunk');
+        success = true;
+      } catch (err) {
+        attempts++;
+        lastErr = err;
+        if (attempts >= 3) throw lastErr;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    if (onProgress) {
+      const uploadedBytes = Math.min(totalSize, (i + 1) * CHUNK_SIZE);
+      const pct = Math.round((uploadedBytes / totalSize) * 100);
+      onProgress(pct, uploadedBytes, totalSize);
+    }
   }
 }
 
@@ -238,32 +311,58 @@ async function startAnalysis() {
   el.stepNav1.classList.add('completed');
   el.stepNav2.classList.add('active');
 
-  // LOCK Preview Player while calculating so user cannot play un-synced audio!
+  // LOCK Preview Player while calculating
   el.btnPlayPause.disabled = true;
   el.btnPlayPause.style.opacity = '0.6';
   el.btnPlayPause.style.cursor = 'not-allowed';
   el.playIcon.textContent = '⏳';
-  el.playText.textContent = 'Đang dò nhịp... (chờ 1-2s)';
+  el.playText.textContent = 'Đang đồng bộ...';
   el.btnOverlayPlay.style.display = 'none';
 
   el.statusIcon.textContent = '⏳';
-  el.statusTitle.textContent = 'Đang phân tích bước sóng & nhịp điệu...';
-  el.statusDesc.textContent = 'Hệ thống đang trích xuất nhịp bass để tìm thời điểm khớp chuẩn xác...';
-  el.confidenceBadge.textContent = 'Đang đo';
+  el.statusTitle.textContent = 'Đang tải dữ liệu lên máy chủ...';
+  el.statusDesc.textContent = 'Hệ thống đang truyền file an toàn theo từng lát nhỏ (hỗ trợ video 4K/1080p dung lượng lớn)...';
+  el.confidenceBadge.textContent = 'Đang tải';
   el.confidenceBadge.className = 'status-badge';
 
-  try {
-    // Decode audio locally only for waveform + in-browser preview
-    if (!state.bufferGoc) state.bufferGoc = await state.syncEngine.decodeFile(state.fileGoc);
-    if (!state.bufferNhay) state.bufferNhay = await state.syncEngine.decodeFile(state.fileNhay);
-    state.gocWave = state.syncEngine.extractWaveformPeaks(state.bufferGoc, 500);
-    state.nhayWave = state.syncEngine.extractWaveformPeaks(state.bufferNhay, 500);
+  if (el.uploadProgressWrap) el.uploadProgressWrap.classList.remove('hidden');
+  if (el.uploadProgressBar) el.uploadProgressBar.style.width = '0%';
 
-    // Real detection runs on the server over the WHOLE video (any lead-in length)
-    el.statusDesc.textContent = 'Đang tải video lên máy chủ và dò toàn bộ video để tìm điểm nhạc bắt đầu...';
+  try {
+    // Generate unique session ID for chunk uploads
+    const sessionId = 'sf' + Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    state.sessionId = sessionId;
+
+    // 1. Upload Music file (goc)
+    el.statusTitle.textContent = 'Đang tải nhạc gốc...';
+    await uploadFileInChunks(state.fileGoc, 'goc', sessionId, (pct, up, tot) => {
+      const mbUp = (up / (1024 * 1024)).toFixed(1);
+      const mbTot = (tot / (1024 * 1024)).toFixed(1);
+      el.statusDesc.textContent = `Tải file nhạc: ${pct}% (${mbUp}/${mbTot} MB)...`;
+      if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(pct * 0.3) + '%';
+    });
+
+    // 2. Upload Dance video file (nhay)
+    el.statusTitle.textContent = 'Đang tải video nhảy...';
+    await uploadFileInChunks(state.fileNhay, 'nhay', sessionId, (pct, up, tot) => {
+      const mbUp = (up / (1024 * 1024)).toFixed(1);
+      const mbTot = (tot / (1024 * 1024)).toFixed(1);
+      el.statusDesc.textContent = `Tải video nhảy: ${pct}% (${mbUp}/${mbTot} MB)...`;
+      if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(30 + pct * 0.7) + '%';
+    });
+
+    if (el.uploadProgressBar) el.uploadProgressBar.style.width = '100%';
+    setTimeout(() => {
+      if (el.uploadProgressWrap) el.uploadProgressWrap.classList.add('hidden');
+    }, 400);
+
+    // 3. Trigger server analysis (FFmpeg + Normalized Cross-Correlation)
+    el.statusTitle.textContent = 'Đang phân tích bước sóng & nhịp điệu...';
+    el.statusDesc.textContent = 'Máy chủ đang quét toàn bộ âm thanh để tìm thời điểm khớp chuẩn xác mili-giây...';
+    el.confidenceBadge.textContent = 'Đang dò nhịp';
+
     const fd = new FormData();
-    fd.append('fileGoc', state.fileGoc);
-    fd.append('fileNhay', state.fileNhay);
+    fd.append('sessionId', sessionId);
     const resp = await fetch('/api/analyze', { method: 'POST', body: fd });
     if (!resp.ok) {
       let msg = resp.statusText;
@@ -277,8 +376,12 @@ async function startAnalysis() {
     state.currentOffsetMs = state.autoOffsetMs;
     state.confidence = r.confidenceLevel;
     state.danceDuration = Number(r.danceDuration) || (el.previewVideo.duration || 60);
-    state.originalDuration = Number(r.originalDuration) || (state.bufferGoc ? state.bufferGoc.duration : 60);
+    state.originalDuration = Number(r.originalDuration) || 60;
     el.offsetInput.value = state.currentOffsetMs;
+
+    // Receive visual peaks computed by server (instant, 0% RAM usage on client)
+    state.nhayWave = r.dancePeaks || null;
+    state.gocWave = r.originalPeaks || null;
 
     // Initialize smart auto trimming for lead-in and outro
     initTrimControls();
@@ -343,6 +446,7 @@ async function startAnalysis() {
 
   } catch (err) {
     console.error('Lỗi phân tích sync:', err);
+    if (el.uploadProgressWrap) el.uploadProgressWrap.classList.add('hidden');
     state.sessionId = null;
     state.autoOffsetMs = 0;
     state.currentOffsetMs = 0;
@@ -378,6 +482,7 @@ function initCanvasResize() {
 
 function renderWaveforms() {
   const canvas = el.waveformCanvas;
+  if (!canvas) return;
   const wrap = canvas.parentElement;
   canvas.width = wrap.clientWidth * window.devicePixelRatio;
   canvas.height = wrap.clientHeight * window.devicePixelRatio;
@@ -404,8 +509,8 @@ function renderWaveforms() {
   ctx.stroke();
 
   // Shared timeline: dance video starts at t=0, original music starts at t=offset.
-  const nhayDur = state.bufferNhay ? state.bufferNhay.duration : 60;
-  const gocDur = state.bufferGoc ? state.bufferGoc.duration : 60;
+  const nhayDur = state.danceDuration || (el.previewVideo && el.previewVideo.duration ? el.previewVideo.duration : 60);
+  const gocDur = state.originalDuration || (state.bufferGoc ? state.bufferGoc.duration : 60);
   const offSec = state.currentOffsetMs / 1000;
   const t0 = Math.min(0, offSec);
   const t1 = Math.max(nhayDur, offSec + gocDur);
@@ -413,7 +518,7 @@ function renderWaveforms() {
   const px = (t) => ((t - t0) / (t1 - t0)) * w;
 
   // Wave 1: Original Music (Orange) - Top half, starts at t = offset
-  if (state.gocWave) {
+  if (state.gocWave && state.gocWave.length > 0) {
     ctx.fillStyle = '#FE7409';
     const bins = state.gocWave.length;
     const barWidth = Math.max(1, (gocDur / (t1 - t0)) * w / bins);
@@ -424,7 +529,7 @@ function renderWaveforms() {
   }
 
   // Wave 2: Dance video audio (Cyan) - Bottom half, starts at t = 0
-  if (state.nhayWave) {
+  if (state.nhayWave && state.nhayWave.length > 0) {
     ctx.fillStyle = '#00E5FF';
     const bins = state.nhayWave.length;
     const barWidth = Math.max(1, (nhayDur / (t1 - t0)) * w / bins);
@@ -533,41 +638,68 @@ function seekPreview(time) {
 }
 
 function startAudioPreview(videoCurrentTime) {
-  const ctx = state.syncEngine.getAudioContext();
-  if (!state.bufferGoc) return;
-
-  // Convention (same as server): offset > 0 => music starts `offset` AFTER the start of the dance video.
-  // dance[t] ~ original[t - offset]  =>  position in original = videoTime - offset
   const offsetSec = state.currentOffsetMs / 1000;
   const gocAudioPosition = videoCurrentTime - offsetSec;
-
-  if (gocAudioPosition >= state.bufferGoc.duration) return;
-
-  // Create Source Node
-  state.audioSourceNode = ctx.createBufferSource();
-  state.audioSourceNode.buffer = state.bufferGoc;
-
-  // Gain Node for Music Volume
-  state.audioGainGoc = ctx.createGain();
   const musicVol = parseInt(el.musicVolume.value, 10) / 100;
-  state.audioGainGoc.gain.value = musicVol;
 
-  state.audioSourceNode.connect(state.audioGainGoc);
-  state.audioGainGoc.connect(ctx.destination);
+  // Case 1: Web Audio Buffer available (high accuracy)
+  if (state.bufferGoc) {
+    try {
+      const ctx = state.syncEngine.getAudioContext();
+      if (gocAudioPosition < state.bufferGoc.duration) {
+        state.audioSourceNode = ctx.createBufferSource();
+        state.audioSourceNode.buffer = state.bufferGoc;
 
-  if (gocAudioPosition >= 0) {
-    state.audioSourceNode.start(0, gocAudioPosition);
-  } else {
-    // Delay music start if video started earlier
-    state.audioSourceNode.start(ctx.currentTime + Math.abs(gocAudioPosition), 0);
+        state.audioGainGoc = ctx.createGain();
+        state.audioGainGoc.gain.value = musicVol;
+
+        state.audioSourceNode.connect(state.audioGainGoc);
+        state.audioGainGoc.connect(ctx.destination);
+
+        if (gocAudioPosition >= 0) {
+          state.audioSourceNode.start(0, gocAudioPosition);
+        } else {
+          state.audioSourceNode.start(ctx.currentTime + Math.abs(gocAudioPosition), 0);
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn('WebAudio preview failed, switching to HTML5 audio fallback:', e);
+    }
+  }
+
+  // Case 2: HTML5 Audio fallback (plays original music via el.previewAudioGoc)
+  if (el.previewAudioGoc && state.urlGocAudio) {
+    if (!el.previewAudioGoc.src) el.previewAudioGoc.src = state.urlGocAudio;
+    el.previewAudioGoc.volume = musicVol;
+
+    if (gocAudioPosition >= 0) {
+      el.previewAudioGoc.currentTime = gocAudioPosition;
+      el.previewAudioGoc.play().catch(e => console.log('Audio play error:', e));
+    } else {
+      if (state.previewAudioTimeout) clearTimeout(state.previewAudioTimeout);
+      state.previewAudioTimeout = setTimeout(() => {
+        if (state.isPlaying) {
+          el.previewAudioGoc.currentTime = 0;
+          el.previewAudioGoc.play().catch(e => console.log('Audio play error:', e));
+        }
+      }, Math.abs(gocAudioPosition) * 1000);
+    }
   }
 }
 
 function stopAudioPreview() {
+  if (state.previewAudioTimeout) {
+    clearTimeout(state.previewAudioTimeout);
+    state.previewAudioTimeout = null;
+  }
   if (state.audioSourceNode) {
     try { state.audioSourceNode.stop(); } catch (e) {}
     state.audioSourceNode.disconnect();
     state.audioSourceNode = null;
+  }
+  if (el.previewAudioGoc) {
+    try { el.previewAudioGoc.pause(); } catch (e) {}
   }
 }
 
@@ -580,6 +712,9 @@ function updateAudioVolumes() {
 
   if (state.audioGainGoc) {
     state.audioGainGoc.gain.value = musicVol / 100;
+  }
+  if (el.previewAudioGoc) {
+    el.previewAudioGoc.volume = musicVol / 100;
   }
   // Video element volume handles room audio
   el.previewVideo.muted = (roomVol === 0);
