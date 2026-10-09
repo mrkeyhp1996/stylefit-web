@@ -273,8 +273,10 @@ async def analyze(
     return {
         "sessionId": sid,
         "offsetMs": r["offset_ms"],
+        "rawOffsetMs": r.get("raw_offset_ms"),
         "confidenceLevel": r["confidence_level"],
         "confidenceRatio": r["confidence_ratio"],
+        "isHeadphones": r.get("is_headphones", False),
         "driftMs": r["drift_ms"],
         "danceDuration": r["dance_duration"],
         "originalDuration": r["original_duration"],

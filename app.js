@@ -80,6 +80,12 @@ const el = {
   musicVolText: document.getElementById('musicVolText'),
   roomVolText: document.getElementById('roomVolText'),
 
+  // Headphones Mode & Visual Beat 1 elements
+  headphonesBanner: document.getElementById('headphonesBanner'),
+  videoScrubber: document.getElementById('videoScrubber'),
+  scrubberTimeText: document.getElementById('scrubberTimeText'),
+  btnSetBeat1: document.getElementById('btnSetBeat1'),
+
   // Trimming Card elements
   trimCard: document.getElementById('trimCard'),
   trimStartToggle: document.getElementById('trimStartToggle'),
@@ -492,26 +498,39 @@ async function startAnalysis() {
       ? `Nhạc bắt đầu ở giây thứ ${secs} của video bạn quay`
       : `Video gốc có ${secs}s đầu mà video của bạn không có`;
 
-    if (r.confidenceLevel === 'high') {
+    if (r.isHeadphones || r.confidenceLevel === 'headphones') {
+      state.isHeadphonesMode = true;
+      if (el.headphonesBanner) el.headphonesBanner.classList.remove('hidden');
+      el.statusIcon.textContent = '🎧';
+      el.statusTitle.textContent = 'Phát hiện quay khi đeo tai nghe (Không có tiếng loa ngoài)';
+      el.statusDesc.textContent = 'Video không thu được tiếng nhạc do bạn đeo tai nghe. Hãy kéo thanh tua video đến lúc bạn bắt đầu bước chân nhịp 1, rồi bấm nút "🎯 Đặt Nhịp 1 Bắt Đầu Tại Đây"!';
+      el.confidenceBadge.textContent = 'Chế độ Tai Nghe';
+      el.confidenceBadge.className = 'status-badge';
+      el.confidenceBadge.style.borderColor = '#FE7409';
+      el.confidenceBadge.style.color = '#FE7409';
+    } else if (r.confidenceLevel === 'high') {
+      if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
       el.statusIcon.textContent = '🟢';
       el.statusTitle.textContent = `Đã tìm thấy điểm khớp: ${where}`;
       el.statusDesc.textContent = 'Hãy bấm "Nghe thử" để kiểm tra bằng tai. Có thể tinh chỉnh ±10ms nếu cần.';
       el.confidenceBadge.textContent = 'Độ tin cậy: Cao';
       el.confidenceBadge.className = 'status-badge success';
     } else if (r.confidenceLevel === 'medium') {
+      if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
       el.statusIcon.textContent = '🟡';
       el.statusTitle.textContent = `Có thể khớp: ${where}`;
       el.statusDesc.textContent = 'Độ tin cậy trung bình (tiếng loa khá nhỏ/ồn). Hãy nghe thử kỹ và tinh chỉnh bằng các nút ±.';
       el.confidenceBadge.textContent = 'Độ tin cậy: Vừa';
       el.confidenceBadge.className = 'status-badge';
     } else {
+      if (el.headphonesBanner) el.headphonesBanner.classList.remove('hidden');
       el.statusIcon.textContent = '🔴';
-      el.statusTitle.textContent = 'Chưa chắc chắn — cần căn tay';
-      el.statusDesc.textContent = 'Video nhảy có thể không thu được tiếng nhạc, hoặc 2 video khác bài. Hãy nghe thử và căn bằng các nút ±.';
-      el.confidenceBadge.textContent = 'Độ tin cậy: Thấp';
+      el.statusTitle.textContent = 'Không có tiếng nhạc — Dùng Căn Nhịp Bằng Mắt';
+      el.statusDesc.textContent = 'Video không thu được nhạc (hoặc đeo tai nghe). Hãy kéo thanh tua video đến lúc bước chân nhịp 1 rồi bấm "🎯 Đặt Nhịp 1 Bắt Đầu Tại Đây".';
+      el.confidenceBadge.textContent = 'Căn bằng mắt';
       el.confidenceBadge.className = 'status-badge';
     }
-    if (r.driftMs !== null && Math.abs(r.driftMs) > 80) {
+    if (r.driftMs !== null && Math.abs(r.driftMs) > 80 && !r.isHeadphones) {
       el.statusDesc.textContent += ` ⚠️ Nhạc trong video của bạn lệch dần ${Math.round(r.driftMs)}ms từ đầu đến cuối (có thể là bản nhạc nhanh/chậm hơn bản gốc).`;
     }
 
@@ -664,15 +683,93 @@ function onOffsetChanged() {
 function setupPreviewDurations() {
   el.previewVideo.addEventListener('loadedmetadata', () => {
     el.durationTimeText.textContent = formatSeconds(el.previewVideo.duration);
+    updateScrubberTimeDisplay(el.previewVideo.currentTime);
   });
   el.previewVideo.addEventListener('timeupdate', () => {
     el.currentTimeText.textContent = formatSeconds(el.previewVideo.currentTime);
+    if (el.videoScrubber && el.previewVideo.duration) {
+      el.videoScrubber.value = (el.previewVideo.currentTime / el.previewVideo.duration) * 100;
+    }
+    updateScrubberTimeDisplay(el.previewVideo.currentTime);
     updatePlayheadPosition();
   });
   el.previewVideo.addEventListener('ended', () => {
     stopPreview();
   });
 }
+
+function onVideoScrubberInput(val) {
+  if (!el.previewVideo || !el.previewVideo.duration) return;
+  const targetTime = (parseFloat(val) / 100) * el.previewVideo.duration;
+  el.previewVideo.currentTime = targetTime;
+  updateScrubberTimeDisplay(targetTime);
+  updatePlayheadPosition();
+  if (state.isPlaying) {
+    stopAudioPreview();
+    startAudioPreview(targetTime);
+  }
+}
+
+function updateScrubberTimeDisplay(sec) {
+  if (el.scrubberTimeText) {
+    const s = Math.max(0, sec || 0);
+    const m = Math.floor(s / 60);
+    const remS = (s % 60).toFixed(1);
+    el.scrubberTimeText.textContent = `${m < 10 ? '0' : ''}${m}:${remS < 10 ? '0' : ''}${remS}`;
+  }
+}
+
+function stepFrame(deltaSec) {
+  if (!el.previewVideo || !el.previewVideo.duration) return;
+  const newTime = Math.max(0, Math.min(el.previewVideo.duration, el.previewVideo.currentTime + deltaSec));
+  el.previewVideo.currentTime = newTime;
+  if (el.videoScrubber) {
+    el.videoScrubber.value = (newTime / el.previewVideo.duration) * 100;
+  }
+  updateScrubberTimeDisplay(newTime);
+  updatePlayheadPosition();
+  if (state.isPlaying) {
+    stopAudioPreview();
+    startAudioPreview(newTime);
+  }
+}
+
+function setBeat1AtCurrentFrame() {
+  if (!el.previewVideo) return;
+  const curTime = el.previewVideo.currentTime;
+  const newOffsetMs = Math.round(curTime * 1000);
+
+  state.currentOffsetMs = newOffsetMs;
+  if (el.offsetInput) el.offsetInput.value = state.currentOffsetMs;
+
+  // Auto set trim start to cut the lead-in waiting time
+  state.trimStartSec = Math.max(0, parseFloat(curTime.toFixed(2)));
+  if (el.trimStartInput) el.trimStartInput.value = state.trimStartSec;
+  if (el.trimStartToggle) el.trimStartToggle.checked = true;
+
+  onOffsetChanged();
+  if (typeof updateTrimSummary === 'function') updateTrimSummary();
+
+  // Show positive visual notification
+  if (el.statusIcon) el.statusIcon.textContent = '🎯';
+  if (el.statusTitle) el.statusTitle.textContent = `Đã gán Nhịp 1 tại giây ${curTime.toFixed(2)}s!`;
+  if (el.statusDesc) el.statusDesc.textContent = 'Bài nhạc gốc sẽ bắt đầu vang lên đúng khoảnh khắc này. Đang tự động phát thử...';
+  if (el.confidenceBadge) {
+    el.confidenceBadge.textContent = 'Khớp bằng mắt: Chuẩn';
+    el.confidenceBadge.className = 'status-badge success';
+  }
+
+  // Auto seek to 0.8s before beat 1 and play preview so user immediately hears the sync
+  const seekTarget = Math.max(0, curTime - 0.8);
+  seekPreview(seekTarget);
+  if (!state.isPlaying) {
+    startPreview();
+  }
+}
+
+window.onVideoScrubberInput = onVideoScrubberInput;
+window.stepFrame = stepFrame;
+window.setBeat1AtCurrentFrame = setBeat1AtCurrentFrame;
 
 function updatePlayheadPosition() {
   if (!el.previewVideo.duration || !state.timeline) return;

@@ -288,6 +288,15 @@
         <!-- STEP 2: STUDIO & SYNC -->
         <section id="step2" class="tool-step hidden">
           
+          <!-- Headphones Mode Banner (Tự động hiện khi video không có tiếng nhạc) -->
+          <div id="headphonesBanner" class="headphones-banner hidden">
+            <div class="hb-icon">🎧</div>
+            <div class="hb-content">
+              <h4>CHẾ ĐỘ CĂN NHỊP BẰNG MẮT (DÀNH CHO ĐEO TAI NGHE)</h4>
+              <p>Video không có tiếng nhạc bài hát do bạn quay khi đeo tai nghe. Hãy dùng <strong>Thanh tua video</strong> bên dưới kéo đến lúc <strong>chân bạn vừa chạm đất nhịp 1</strong>, rồi bấm nút <strong style="color:#FE7409">🎯 Đặt Nhịp 1 Bắt Đầu Tại Đây</strong>!</p>
+            </div>
+          </div>
+
           <!-- Status Banner -->
           <div class="sync-status-box" id="syncStatusBox">
             <div class="status-indicator-icon" id="statusIcon">⏳</div>
@@ -320,20 +329,22 @@
             <div class="nudge-controls">
               <span class="nudge-label">Độ lệch thời gian:</span>
               <div class="nudge-btn-group">
-                <button class="btn-nudge" onclick="adjustOffset(-100)">-100ms</button>
-                <button class="btn-nudge" onclick="adjustOffset(-50)">-50ms</button>
-                <button class="btn-nudge" onclick="adjustOffset(-10)">-10ms</button>
+                <button type="button" class="btn-nudge btn-nudge-big" onclick="adjustOffset(-1000)" title="Lùi 1 giây">-1s</button>
+                <button type="button" class="btn-nudge btn-nudge-big" onclick="adjustOffset(-500)" title="Lùi 0.5 giây">-0.5s</button>
+                <button type="button" class="btn-nudge" onclick="adjustOffset(-100)">-100ms</button>
+                <button type="button" class="btn-nudge" onclick="adjustOffset(-10)">-10ms</button>
                 
                 <div class="offset-input-wrap">
-                  <input type="number" id="offsetInput" value="0" step="5" onchange="onOffsetInputChange()">
+                  <input type="number" id="offsetInput" value="0" step="10" onchange="onOffsetInputChange()">
                   <span class="unit">ms</span>
                 </div>
 
-                <button class="btn-nudge" onclick="adjustOffset(+10)">+10ms</button>
-                <button class="btn-nudge" onclick="adjustOffset(+50)">+50ms</button>
-                <button class="btn-nudge" onclick="adjustOffset(+100)">+100ms</button>
+                <button type="button" class="btn-nudge" onclick="adjustOffset(+10)">+10ms</button>
+                <button type="button" class="btn-nudge" onclick="adjustOffset(+100)">+100ms</button>
+                <button type="button" class="btn-nudge btn-nudge-big" onclick="adjustOffset(+500)" title="Tiến 0.5 giây">+0.5s</button>
+                <button type="button" class="btn-nudge btn-nudge-big" onclick="adjustOffset(+1000)" title="Tiến 1 giây">+1s</button>
               </div>
-              <button class="btn-reset-nudge" onclick="resetToAutoOffset()" title="Quay lại độ lệch tự động gợi ý">↺ Khớp tự động</button>
+              <button type="button" class="btn-reset-nudge" onclick="resetToAutoOffset()" title="Quay lại độ lệch tự động gợi ý">↺ Khớp tự động</button>
             </div>
           </div>
 
@@ -341,11 +352,30 @@
           <div class="preview-player-card">
             <div class="player-grid">
               
-              <div class="video-container">
-                <video id="previewVideo" playsinline muted></video>
-                <audio id="previewAudioGoc" playsinline preload="auto" style="display:none"></audio>
-                <div class="video-overlay-play" id="btnOverlayPlay" onclick="togglePlayPreview()">
-                  ▶
+              <div class="video-container-col">
+                <div class="video-container">
+                  <video id="previewVideo" playsinline muted></video>
+                  <audio id="previewAudioGoc" playsinline preload="auto" style="display:none"></audio>
+                  <div class="video-overlay-play" id="btnOverlayPlay" onclick="togglePlayPreview()">
+                    ▶
+                  </div>
+                </div>
+
+                <!-- Thanh tua video & Căn nhịp 1 bằng mắt -->
+                <div class="video-scrubber-box">
+                  <div class="scrubber-row">
+                    <span class="scrub-label">Tua video:</span>
+                    <input type="range" id="videoScrubber" min="0" max="100" value="0" step="0.05" oninput="onVideoScrubberInput(this.value)">
+                    <span id="scrubberTimeText" class="scrub-time">00:00.0</span>
+                  </div>
+                  <div class="frame-step-row">
+                    <button type="button" class="btn-step-frame" onclick="stepFrame(-0.1)" title="Lùi 0.1 giây (khoảng 3 frame)">◀ -0.1s</button>
+                    <button type="button" class="btn-step-frame" onclick="stepFrame(+0.1)" title="Tiến 0.1 giây (khoảng 3 frame)">+0.1s ▶</button>
+                    <button type="button" class="btn-set-beat1" id="btnSetBeat1" onclick="setBeat1AtCurrentFrame()" title="Khớp nhịp bài hát ngay tại frame chân bắt đầu nhảy">
+                      <span>🎯</span>
+                      <strong>Đặt Nhịp 1 Bắt Đầu Tại Đây</strong>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1055,7 +1085,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="sync-engine.js?v=3.4"></script>
-  <script src="app.js?v=3.4"></script>
+  <script src="sync-engine.js?v=3.5"></script>
+  <script src="app.js?v=3.5"></script>
 </body>
 </html>

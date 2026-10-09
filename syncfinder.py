@@ -117,17 +117,20 @@ def find_offset(dance_path, original_path, sr=SR):
     except Exception:
         pass
 
-    if ratio >= 1.35:
+    is_headphones = (ratio < 1.32)
+    if ratio >= 1.50:
         level = "high"
-    elif ratio >= 1.15:
+    elif ratio >= 1.32:
         level = "medium"
     else:
-        level = "low"
+        level = "headphones"
 
     return {
-        "offset_ms": round(offset_ms, 1),
+        "offset_ms": round(offset_ms, 1) if not is_headphones else 0.0,
+        "raw_offset_ms": round(offset_ms, 1),
         "confidence_ratio": round(ratio, 2),
         "confidence_level": level,
+        "is_headphones": is_headphones,
         "drift_ms": None if drift_ms is None else round(drift_ms, 1),
         "dance_duration": round(len(dance) / sr, 2),
         "original_duration": round(len(orig) / sr, 2),

@@ -2884,3 +2884,135 @@ body::before {
     width: 100%;
   }
 }
+
+/* Headphones Mode & Visual Beat 1 Alignment Styles */
+.headphones-banner {
+  background: linear-gradient(135deg, rgba(254, 116, 9, 0.18), rgba(255, 145, 0, 0.08));
+  border: 1px solid rgba(254, 116, 9, 0.45);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+  animation: fadeIn 0.3s ease;
+}
+
+.hb-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.hb-content h4 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.hb-content p {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.video-container-col {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.video-scrubber-box {
+  margin-top: 14px;
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.scrubber-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.scrub-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+#videoScrubber {
+  flex: 1;
+  accent-color: var(--primary);
+  height: 6px;
+  cursor: pointer;
+}
+
+.scrub-time {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 60px;
+  text-align: right;
+}
+
+.frame-step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-step-frame {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-step-frame:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #FFF;
+}
+
+.btn-set-beat1 {
+  flex: 1;
+  min-width: 190px;
+  background: linear-gradient(135deg, #FE7409, #E05D00);
+  border: none;
+  color: #000;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(254, 116, 9, 0.4);
+  transition: all 0.2s;
+}
+
+.btn-set-beat1:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(254, 116, 9, 0.6);
+  filter: brightness(1.1);
+}
+
+.btn-nudge-big {
+  background: rgba(254, 116, 9, 0.12) !important;
+  color: var(--primary) !important;
+  border-color: rgba(254, 116, 9, 0.3) !important;
+}
