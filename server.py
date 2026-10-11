@@ -286,6 +286,91 @@ async def analyze(
     }
 
 
+@app.post("/api/analyze_fast")
+async def analyze_fast(sessionId: str = Form(...)):
+    """
+    Fast Sync: Analyzes offset using the first 15MB (up to 5 chunks) of the dance video.
+    Returns offset in 0.3-0.5s so user can enter Studio and hear preview immediately,
+    while remaining chunks upload in background.
+    """
+    if not sessionId.isalnum():
+        raise HTTPException(status_code=400, detail="sessionId không hợp lệ")
+
+    sdir = UPLOADS_DIR / sessionId
+    if not sdir.exists():
+        raise HTTPException(status_code=404, detail="Phiên làm việc không tồn tại")
+
+    goc_path = next(iter(sdir.glob("goc.*")), None)
+    if not goc_path:
+        raise HTTPException(status_code=400, detail="Chưa nhận được file nhạc gốc")
+
+    # If full assembled file already exists
+    nhay_path = next(iter(sdir.glob("nhay.*")), None)
+    if nhay_path and nhay_path.is_file():
+        r = await asyncio.to_thread(find_offset, nhay_path, goc_path)
+        video_meta = await asyncio.to_thread(probe_video, nhay_path)
+        return {
+            "ok": True,
+            "fastSync": False,
+            "sessionId": sessionId,
+            "offsetMs": r["offset_ms"],
+            "rawOffsetMs": r.get("raw_offset_ms"),
+            "confidenceLevel": r["confidence_level"],
+            "confidenceRatio": r["confidence_ratio"],
+            "isHeadphones": r.get("is_headphones", False),
+            "dancePeaks": r.get("dance_peaks"),
+            "originalPeaks": r.get("original_peaks"),
+            "videoMeta": video_meta,
+        }
+
+    chunks_dir = sdir / "chunks_nhay"
+    if not chunks_dir.exists():
+        raise HTTPException(status_code=400, detail="Chưa có dữ liệu video")
+
+    parts = sorted(list(chunks_dir.glob("*.part")))
+    if len(parts) == 0:
+        raise HTTPException(status_code=400, detail="Chưa có lát cắt video")
+
+    # Use first min(5, len(parts)) chunks (~15MB max)
+    head_parts = parts[:min(5, len(parts))]
+    temp_head = sdir / "temp_head.mov"
+
+    def _create_head():
+        with open(temp_head, "wb") as outfile:
+            for p in head_parts:
+                if p.exists():
+                    with open(p, "rb") as infile:
+                        shutil.copyfileobj(infile, outfile)
+
+    await asyncio.to_thread(_create_head)
+
+    try:
+        r = await asyncio.to_thread(find_offset, temp_head, goc_path)
+        video_meta = await asyncio.to_thread(probe_video, temp_head)
+        return {
+            "ok": True,
+            "fastSync": True,
+            "sessionId": sessionId,
+            "offsetMs": r["offset_ms"],
+            "rawOffsetMs": r.get("raw_offset_ms"),
+            "confidenceLevel": r["confidence_level"],
+            "confidenceRatio": r["confidence_ratio"],
+            "isHeadphones": r.get("is_headphones", False),
+            "dancePeaks": r.get("dance_peaks"),
+            "originalPeaks": r.get("original_peaks"),
+            "videoMeta": video_meta,
+        }
+    except Exception as e:
+        print("Fast sync fallback needed:", e)
+        return {"ok": False, "fallbackNeeded": True, "detail": str(e)}
+    finally:
+        if temp_head.exists():
+            try:
+                temp_head.unlink()
+            except Exception:
+                pass
+
+
 @app.post("/api/render")
 async def render_video(
     sessionId: str = Form(...),

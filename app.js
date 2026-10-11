@@ -29,7 +29,9 @@ const state = {
   trimEndSec: 0,
   resolutionMode: 'tiktok_1080p',
   trimPreviewTimer: null,
-  previewAudioTimeout: null
+  previewAudioTimeout: null,
+  backgroundUploadPromise: null,
+  backgroundUploadDone: false
 };
 
 // DOM Elements
@@ -127,7 +129,9 @@ const el = {
   uploadStatsRow: document.getElementById('uploadStatsRow'),
   uploadSpeedText: document.getElementById('uploadSpeedText'),
   uploadMbText: document.getElementById('uploadMbText'),
-  uploadEtaText: document.getElementById('uploadEtaText')
+  uploadEtaText: document.getElementById('uploadEtaText'),
+  bgSyncBadge: document.getElementById('bgSyncBadge'),
+  bgSyncText: document.getElementById('bgSyncText')
 };
 
 // ==========================================
@@ -274,13 +278,14 @@ async function getUploadedChunks(sessionId, fileType) {
   return { completed: false, uploadedChunks: [] };
 }
 
-async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
+async function uploadFileInChunks(file, fileType, sessionId, onProgress, maxChunks = null) {
   const totalSize = file.size;
   const totalChunks = Math.max(1, Math.ceil(totalSize / CHUNK_SIZE));
+  const targetChunksCount = (maxChunks !== null && maxChunks > 0) ? Math.min(maxChunks, totalChunks) : totalChunks;
 
   // Check already uploaded chunks on server to support instant resume
   const status = await getUploadedChunks(sessionId, fileType);
-  if (status.completed) {
+  if (status.completed && (maxChunks === null || maxChunks >= totalChunks)) {
     if (onProgress) onProgress(100, totalSize, totalSize, 0, 0);
     return;
   }
@@ -290,25 +295,30 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
   // Calculate initial uploaded bytes from already uploaded chunks
   let uploadedBytesCount = 0;
   for (let idx of uploadedSet) {
-    const s = idx * CHUNK_SIZE;
-    const e = Math.min(totalSize, s + CHUNK_SIZE);
-    uploadedBytesCount += (e - s);
+    if (idx < targetChunksCount) {
+      const s = idx * CHUNK_SIZE;
+      const e = Math.min(totalSize, s + CHUNK_SIZE);
+      uploadedBytesCount += (e - s);
+    }
   }
 
-  // Build queue of remaining chunks to upload
+  // Build queue of chunks to upload up to targetChunksCount
   const queue = [];
-  for (let i = 0; i < totalChunks; i++) {
+  for (let i = 0; i < targetChunksCount; i++) {
     if (!uploadedSet.has(i)) {
       queue.push(i);
     }
   }
 
   if (queue.length === 0) {
-    if (onProgress) onProgress(100, totalSize, totalSize, 0, 0);
+    if (onProgress) onProgress(100, uploadedBytesCount, totalSize, 0, 0);
     return;
   }
 
-  let completedChunks = uploadedSet.size;
+  let completedChunks = 0;
+  for (let i = 0; i < targetChunksCount; i++) {
+    if (uploadedSet.has(i)) completedChunks++;
+  }
   let activeError = null;
 
   async function uploadChunkWorker(chunkIndex) {
@@ -363,7 +373,7 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
     completedChunks++;
 
     if (onProgress) {
-      const pct = Math.min(100, Math.round((completedChunks / totalChunks) * 100));
+      const pct = Math.min(100, Math.round((completedChunks / targetChunksCount) * 100));
       const elapsedSec = Math.max(0.1, (Date.now() - startTime) / 1000);
       const speedMB = (uploadedBytesCount / (1024 * 1024)) / elapsedSec;
       const remainingBytes = Math.max(0, totalSize - uploadedBytesCount);
@@ -392,9 +402,101 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress) {
   if (activeError) throw activeError;
 }
 
+async function uploadRemainingChunks(file, fileType, sessionId, onProgress) {
+  return uploadFileInChunks(file, fileType, sessionId, onProgress, null);
+}
+
 // ==========================================
 // 3. STEP TRANSITION & ANALYSIS
 // ==========================================
+function applyAnalysisResult(r) {
+  state.sessionId = r.sessionId;
+  state.autoOffsetMs = Math.round(r.offsetMs);
+  state.currentOffsetMs = state.autoOffsetMs;
+  state.confidence = r.confidenceLevel;
+  state.danceDuration = Number(r.danceDuration) || (el.previewVideo.duration || 60);
+  state.originalDuration = Number(r.originalDuration) || 60;
+  el.offsetInput.value = state.currentOffsetMs;
+
+  // Receive visual peaks computed by server (instant, 0% RAM usage on client)
+  state.nhayWave = r.dancePeaks || null;
+  state.gocWave = r.originalPeaks || null;
+
+  // Initialize smart auto trimming for lead-in and outro
+  initTrimControls();
+
+  // Handle detected video resolution & fps from phone camera
+  if (r.videoMeta) {
+    state.videoMeta = r.videoMeta;
+    if (el.detectedVideoBadge) {
+      el.detectedVideoBadge.style.display = 'inline-flex';
+      el.detectedVideoBadge.textContent = `📱 Camera: ${r.videoMeta.label}`;
+    }
+    if (r.videoMeta.is4k) {
+      if (el.resTitleOriginal) el.resTitleOriginal.textContent = `Giữ Trọn 4K Ultra HD (${r.videoMeta.fps}fps) Gốc`;
+      if (el.resDescOriginal) {
+        el.resDescOriginal.textContent = `Giữ trọn vẹn 100% độ phân giải 4K đỉnh cao của iPhone (${r.videoMeta.width}x${r.videoMeta.height} · ${r.videoMeta.fps}fps). Không bị hạ bất kỳ pixel nào.`;
+      }
+      selectResolutionMode('original');
+    } else if (r.videoMeta.is1080p) {
+      if (el.resTitleOriginal) el.resTitleOriginal.textContent = `Giữ Nguyên Full HD 1080p (${r.videoMeta.fps}fps)`;
+      selectResolutionMode('original');
+    }
+  }
+
+  const secs = (Math.abs(state.currentOffsetMs) / 1000).toFixed(2);
+  const where = state.currentOffsetMs >= 0
+    ? `Nhạc bắt đầu ở giây thứ ${secs} của video bạn quay`
+    : `Video gốc có ${secs}s đầu mà video của bạn không có`;
+
+  if (r.isHeadphones || r.confidenceLevel === 'headphones') {
+    state.isHeadphonesMode = true;
+    if (el.headphonesBanner) el.headphonesBanner.classList.remove('hidden');
+    el.statusIcon.textContent = '🎧';
+    el.statusTitle.textContent = 'Phát hiện quay khi đeo tai nghe (Không có tiếng loa ngoài)';
+    el.statusDesc.textContent = 'Video không thu được tiếng nhạc do bạn đeo tai nghe. Hãy kéo thanh tua video đến lúc bạn bắt đầu bước chân nhịp 1, rồi bấm nút "🎯 Đặt Nhịp 1 Bắt Đầu Tại Đây"!';
+    el.confidenceBadge.textContent = 'Chế độ Tai Nghe';
+    el.confidenceBadge.className = 'status-badge';
+    el.confidenceBadge.style.borderColor = '#FE7409';
+    el.confidenceBadge.style.color = '#FE7409';
+  } else if (r.confidenceLevel === 'high') {
+    if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
+    el.statusIcon.textContent = '🟢';
+    el.statusTitle.textContent = `Đã tìm thấy điểm khớp: ${where}`;
+    el.statusDesc.textContent = 'Hãy bấm "Nghe thử" để kiểm tra bằng tai. Có thể tinh chỉnh ±10ms nếu cần.';
+    el.confidenceBadge.textContent = 'Độ tin cậy: Cao';
+    el.confidenceBadge.className = 'status-badge success';
+  } else if (r.confidenceLevel === 'medium') {
+    if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
+    el.statusIcon.textContent = '🟡';
+    el.statusTitle.textContent = `Có thể khớp: ${where}`;
+    el.statusDesc.textContent = 'Độ tin cậy trung bình (tiếng loa khá nhỏ/ồn). Hãy nghe thử kỹ và tinh chỉnh bằng các nút ±.';
+    el.confidenceBadge.textContent = 'Độ tin cậy: Vừa';
+    el.confidenceBadge.className = 'status-badge';
+  } else {
+    if (el.headphonesBanner) el.headphonesBanner.classList.remove('hidden');
+    el.statusIcon.textContent = '🔴';
+    el.statusTitle.textContent = 'Không có tiếng nhạc — Dùng Căn Nhịp Bằng Mắt';
+    el.statusDesc.textContent = 'Video không thu được nhạc (hoặc đeo tai nghe). Hãy kéo thanh tua video đến lúc bước chân nhịp 1 rồi bấm "🎯 Đặt Nhịp 1 Bắt Đầu Tại Đây".';
+    el.confidenceBadge.textContent = 'Căn bằng mắt';
+    el.confidenceBadge.className = 'status-badge';
+  }
+  if (r.driftMs !== null && Math.abs(r.driftMs) > 80 && !r.isHeadphones) {
+    el.statusDesc.textContent += ` ⚠️ Nhạc trong video của bạn lệch dần ${Math.round(r.driftMs)}ms từ đầu đến cuối (có thể là bản nhạc nhanh/chậm hơn bản gốc).`;
+  }
+
+  renderWaveforms();
+  setupPreviewDurations();
+
+  // UNLOCK Preview Player - now safe to play synced video!
+  el.btnPlayPause.disabled = false;
+  el.btnPlayPause.style.opacity = '1';
+  el.btnPlayPause.style.cursor = 'pointer';
+  el.playIcon.textContent = '▶';
+  el.playText.textContent = 'Nghe Thử Đồng Bộ';
+  el.btnOverlayPlay.style.display = 'flex';
+}
+
 async function startAnalysis() {
   if (!state.fileGoc || !state.fileNhay) return;
 
@@ -413,14 +515,15 @@ async function startAnalysis() {
   el.playText.textContent = 'Đang đồng bộ...';
   el.btnOverlayPlay.style.display = 'none';
 
-  el.statusIcon.textContent = '⏳';
-  el.statusTitle.textContent = 'Đang chuẩn bị tải dữ liệu...';
-  el.statusDesc.textContent = 'Hệ thống đang kết nối đường truyền an toàn...';
-  el.confidenceBadge.textContent = 'Đang tải';
+  el.statusIcon.textContent = '⚡';
+  el.statusTitle.textContent = 'Đang đồng bộ siêu tốc...';
+  el.statusDesc.textContent = 'Đang quét mẫu âm thanh để tìm điểm khớp nhịp trong vài giây...';
+  el.confidenceBadge.textContent = 'Siêu tốc';
   el.confidenceBadge.className = 'status-badge';
 
   if (el.uploadProgressWrap) el.uploadProgressWrap.classList.remove('hidden');
   if (el.uploadProgressBar) el.uploadProgressBar.style.width = '0%';
+  if (el.bgSyncBadge) el.bgSyncBadge.classList.add('hidden');
 
   try {
     if (!state.sessionId) {
@@ -429,19 +532,80 @@ async function startAnalysis() {
     const sessionId = state.sessionId;
 
     // 1. Tải file Nhạc Gốc (nhẹ, hoàn tất chỉ trong 1-2 giây)
-    el.statusTitle.textContent = 'Đang tải file nhạc gốc...';
+    el.statusTitle.textContent = 'Đang chuẩn bị file nhạc gốc...';
     await uploadFileInChunks(state.fileGoc, 'goc', sessionId, (pct, up, tot, speed, eta) => {
       const mbUp = (up / (1024 * 1024)).toFixed(1);
       const mbTot = (tot / (1024 * 1024)).toFixed(1);
       el.statusDesc.textContent = `Tải file nhạc: ${pct}% (${mbUp} / ${mbTot} MB)...`;
-      if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(pct * 0.15) + '%';
+      if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(pct * 0.2) + '%';
       if (el.uploadSpeedText) el.uploadSpeedText.textContent = `⚡ ${(speed || 0).toFixed(1)} MB/s`;
       if (el.uploadMbText) el.uploadMbText.textContent = `📦 ${mbUp} / ${mbTot} MB (nhạc)`;
       if (el.uploadEtaText) el.uploadEtaText.textContent = eta > 0 ? `⏱️ Còn ~${eta}s` : '⏱️ Hoàn tất...';
     });
 
-    // 2. Tải video nhảy (dồn 100% băng thông tải từng lát 3MB ổn định tuyệt đối)
-    el.statusTitle.textContent = 'Đang tải video nhảy lên máy chủ...';
+    const totalVideoChunks = Math.max(1, Math.ceil(state.fileNhay.size / CHUNK_SIZE));
+
+    // 2. Chế độ Siêu Tốc: Nếu video lớn (> 15MB), tải trước 5 lát cắt đầu (~15MB) để dò nhịp ngay trong 3-5 giây!
+    if (totalVideoChunks > 5) {
+      el.statusTitle.textContent = 'Đang dò nhịp siêu tốc (quét mẫu 15MB đầu)...';
+      await uploadFileInChunks(state.fileNhay, 'nhay', sessionId, (pct, up, tot, speed, eta) => {
+        const mbUp = (up / (1024 * 1024)).toFixed(1);
+        el.statusDesc.textContent = `Đang quét mẫu video: ${mbUp} / 15 MB...`;
+        if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(20 + pct * 0.7) + '%';
+        if (el.uploadSpeedText) el.uploadSpeedText.textContent = `⚡ ${(speed || 0).toFixed(1)} MB/s`;
+        if (el.uploadMbText) el.uploadMbText.textContent = `📦 ${mbUp} MB (mẫu đầu)`;
+        if (el.uploadEtaText) el.uploadEtaText.textContent = '⏱️ Dò nhịp ngay...';
+      }, 5);
+
+      // Thử gọi /api/analyze_fast
+      try {
+        const fdFast = new FormData();
+        fdFast.append('sessionId', sessionId);
+        const respFast = await fetch('/api/analyze_fast', { method: 'POST', body: fdFast });
+        if (respFast.ok) {
+          const rFast = await respFast.json();
+          if (rFast.ok && rFast.fastSync) {
+            if (el.uploadProgressBar) el.uploadProgressBar.style.width = '100%';
+            setTimeout(() => {
+              if (el.uploadProgressWrap) el.uploadProgressWrap.classList.add('hidden');
+            }, 400);
+
+            applyAnalysisResult(rFast);
+
+            // Bật badge đồng bộ ngầm và chạy tải nền các lát còn lại trong lúc HLV nghe thử!
+            if (el.bgSyncBadge) {
+              el.bgSyncBadge.classList.remove('hidden');
+              el.bgSyncBadge.classList.remove('done');
+            }
+            if (el.bgSyncText) {
+              el.bgSyncText.textContent = '☁️ Đang đồng bộ nền video chất lượng cao cho xuất bản...';
+            }
+
+            state.backgroundUploadDone = false;
+            state.backgroundUploadPromise = uploadRemainingChunks(state.fileNhay, 'nhay', sessionId, (pct, up, tot, speed, eta) => {
+              if (el.bgSyncText) {
+                const mbUp = (up / (1024 * 1024)).toFixed(1);
+                const mbTot = (tot / (1024 * 1024)).toFixed(1);
+                el.bgSyncText.textContent = `☁️ Đang đồng bộ nền video: ${pct}% (${mbUp} / ${mbTot} MB)...`;
+              }
+            }).then(() => {
+              state.backgroundUploadDone = true;
+              if (el.bgSyncBadge) el.bgSyncBadge.classList.add('done');
+              if (el.bgSyncText) el.bgSyncText.textContent = '✅ Video chất lượng cao đã sẵn sàng xuất bản (100%)';
+            }).catch(e => {
+              console.warn('Lỗi tải nền video:', e);
+            });
+
+            return; // XONG! Mở Studio ngay trong 5 giây!
+          }
+        }
+      } catch (e) {
+        console.warn('Thử dò nhịp nhanh không thành công, chuyển sang tải đầy đủ:', e);
+      }
+    }
+
+    // 3. Fallback: Nếu video nhỏ hoặc file đặc biệt cần tải hết
+    el.statusTitle.textContent = 'Đang tải toàn bộ video lên máy chủ...';
     await uploadFileInChunks(state.fileNhay, 'nhay', sessionId, (pct, up, tot, speed, eta) => {
       const mbUp = (up / (1024 * 1024)).toFixed(1);
       const mbTot = (tot / (1024 * 1024)).toFixed(1);
@@ -459,7 +623,6 @@ async function startAnalysis() {
       if (el.uploadProgressWrap) el.uploadProgressWrap.classList.add('hidden');
     }, 600);
 
-    // 3. Trigger server analysis (FFmpeg Multi-thread + Normalized Cross-Correlation)
     el.statusTitle.textContent = 'Đang phân tích bước sóng & nhịp điệu...';
     el.statusDesc.textContent = 'Máy chủ đang quét toàn bộ âm thanh chuẩn mili-giây...';
     el.confidenceBadge.textContent = 'Đang dò nhịp';
@@ -473,92 +636,8 @@ async function startAnalysis() {
       throw new Error(msg);
     }
     const r = await resp.json();
-
-    state.sessionId = r.sessionId;
-    state.autoOffsetMs = Math.round(r.offsetMs);
-    state.currentOffsetMs = state.autoOffsetMs;
-    state.confidence = r.confidenceLevel;
-    state.danceDuration = Number(r.danceDuration) || (el.previewVideo.duration || 60);
-    state.originalDuration = Number(r.originalDuration) || 60;
-    el.offsetInput.value = state.currentOffsetMs;
-
-    // Receive visual peaks computed by server (instant, 0% RAM usage on client)
-    state.nhayWave = r.dancePeaks || null;
-    state.gocWave = r.originalPeaks || null;
-
-    // Initialize smart auto trimming for lead-in and outro
-    initTrimControls();
-
-    // Handle detected video resolution & fps from phone camera
-    if (r.videoMeta) {
-      state.videoMeta = r.videoMeta;
-      if (el.detectedVideoBadge) {
-        el.detectedVideoBadge.style.display = 'inline-flex';
-        el.detectedVideoBadge.textContent = `📱 Camera: ${r.videoMeta.label}`;
-      }
-      if (r.videoMeta.is4k) {
-        if (el.resTitleOriginal) el.resTitleOriginal.textContent = `Giữ Trọn 4K Ultra HD (${r.videoMeta.fps}fps) Gốc`;
-        if (el.resDescOriginal) {
-          el.resDescOriginal.textContent = `Giữ trọn vẹn 100% độ phân giải 4K đỉnh cao của iPhone (${r.videoMeta.width}x${r.videoMeta.height} · ${r.videoMeta.fps}fps). Không bị hạ bất kỳ pixel nào.`;
-        }
-        selectResolutionMode('original');
-      } else if (r.videoMeta.is1080p) {
-        if (el.resTitleOriginal) el.resTitleOriginal.textContent = `Giữ Nguyên Full HD 1080p (${r.videoMeta.fps}fps)`;
-        selectResolutionMode('original');
-      }
-    }
-
-    const secs = (Math.abs(state.currentOffsetMs) / 1000).toFixed(2);
-    const where = state.currentOffsetMs >= 0
-      ? `Nhạc bắt đầu ở giây thứ ${secs} của video bạn quay`
-      : `Video gốc có ${secs}s đầu mà video của bạn không có`;
-
-    if (r.isHeadphones || r.confidenceLevel === 'headphones') {
-      state.isHeadphonesMode = true;
-      if (el.headphonesBanner) el.headphonesBanner.classList.remove('hidden');
-      el.statusIcon.textContent = '🎧';
-      el.statusTitle.textContent = 'Phát hiện quay khi đeo tai nghe (Không có tiếng loa ngoài)';
-      el.statusDesc.textContent = 'Video không thu được tiếng nhạc do bạn đeo tai nghe. Hãy kéo thanh tua video đến lúc bạn bắt đầu bước chân nhịp 1, rồi bấm nút "🎯 Đặt Nhịp 1 Bắt Đầu Tại Đây"!';
-      el.confidenceBadge.textContent = 'Chế độ Tai Nghe';
-      el.confidenceBadge.className = 'status-badge';
-      el.confidenceBadge.style.borderColor = '#FE7409';
-      el.confidenceBadge.style.color = '#FE7409';
-    } else if (r.confidenceLevel === 'high') {
-      if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
-      el.statusIcon.textContent = '🟢';
-      el.statusTitle.textContent = `Đã tìm thấy điểm khớp: ${where}`;
-      el.statusDesc.textContent = 'Hãy bấm "Nghe thử" để kiểm tra bằng tai. Có thể tinh chỉnh ±10ms nếu cần.';
-      el.confidenceBadge.textContent = 'Độ tin cậy: Cao';
-      el.confidenceBadge.className = 'status-badge success';
-    } else if (r.confidenceLevel === 'medium') {
-      if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
-      el.statusIcon.textContent = '🟡';
-      el.statusTitle.textContent = `Có thể khớp: ${where}`;
-      el.statusDesc.textContent = 'Độ tin cậy trung bình (tiếng loa khá nhỏ/ồn). Hãy nghe thử kỹ và tinh chỉnh bằng các nút ±.';
-      el.confidenceBadge.textContent = 'Độ tin cậy: Vừa';
-      el.confidenceBadge.className = 'status-badge';
-    } else {
-      if (el.headphonesBanner) el.headphonesBanner.classList.remove('hidden');
-      el.statusIcon.textContent = '🔴';
-      el.statusTitle.textContent = 'Không có tiếng nhạc — Dùng Căn Nhịp Bằng Mắt';
-      el.statusDesc.textContent = 'Video không thu được nhạc (hoặc đeo tai nghe). Hãy kéo thanh tua video đến lúc bước chân nhịp 1 rồi bấm "🎯 Đặt Nhịp 1 Bắt Đầu Tại Đây".';
-      el.confidenceBadge.textContent = 'Căn bằng mắt';
-      el.confidenceBadge.className = 'status-badge';
-    }
-    if (r.driftMs !== null && Math.abs(r.driftMs) > 80 && !r.isHeadphones) {
-      el.statusDesc.textContent += ` ⚠️ Nhạc trong video của bạn lệch dần ${Math.round(r.driftMs)}ms từ đầu đến cuối (có thể là bản nhạc nhanh/chậm hơn bản gốc).`;
-    }
-
-    renderWaveforms();
-    setupPreviewDurations();
-
-    // UNLOCK Preview Player - now safe to play synced video!
-    el.btnPlayPause.disabled = false;
-    el.btnPlayPause.style.opacity = '1';
-    el.btnPlayPause.style.cursor = 'pointer';
-    el.playIcon.textContent = '▶';
-    el.playText.textContent = 'Nghe Thử Đồng Bộ';
-    el.btnOverlayPlay.style.display = 'flex';
+    state.backgroundUploadDone = true;
+    applyAnalysisResult(r);
 
   } catch (err) {
     console.error('Lỗi phân tích sync:', err);
@@ -1163,6 +1242,18 @@ async function runExportPipeline() {
   try {
     if (!state.sessionId) throw new Error('Chưa có phiên làm việc. Hãy quay lại bước 1 và chọn lại video.');
     
+    // Đảm bảo dữ liệu nền video đã tải xong nếu người dùng bấm xuất ngay
+    if (state.backgroundUploadPromise && !state.backgroundUploadDone) {
+      if (el.exportStatusDesc) {
+        el.exportStatusDesc.textContent = 'Đang đồng bộ nốt dữ liệu video chất lượng cao...';
+      }
+      try {
+        await state.backgroundUploadPromise;
+      } catch (e) {
+        console.warn('Lỗi đồng bộ nền video:', e);
+      }
+    }
+
     const startActive = el.trimStartToggle && el.trimStartToggle.checked;
     const endActive = el.trimEndToggle && el.trimEndToggle.checked;
     const trimStartVal = startActive ? state.trimStartSec : 0.0;
