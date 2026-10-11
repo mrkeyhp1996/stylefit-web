@@ -119,7 +119,15 @@ const el = {
   progressPctText: document.getElementById('progressPctText'),
   finalVideo: document.getElementById('finalVideo'),
   btnDownload: document.getElementById('btnDownload'),
-  btnShare: document.getElementById('btnShare')
+  downloadBtnText: document.getElementById('downloadBtnText'),
+  linkDirectDownload: document.getElementById('linkDirectDownload'),
+  btnShare: document.getElementById('btnShare'),
+
+  // Live upload stats elements
+  uploadStatsRow: document.getElementById('uploadStatsRow'),
+  uploadSpeedText: document.getElementById('uploadSpeedText'),
+  uploadMbText: document.getElementById('uploadMbText'),
+  uploadEtaText: document.getElementById('uploadEtaText')
 };
 
 // ==========================================
@@ -213,7 +221,8 @@ async function handleFileSelect(type, file) {
     if (state.urlNhayVideo) URL.revokeObjectURL(state.urlNhayVideo);
     state.urlNhayVideo = URL.createObjectURL(file);
     el.previewVideo.src = state.urlNhayVideo;
-    el.fileMetaNhay.textContent = `Video sẵn sàng · ${formatBytes(file.size)}`;
+    const mb = (file.size / (1024 * 1024)).toFixed(1);
+    el.fileMetaNhay.textContent = `Video sẵn sàng · ${mb} MB`;
 
     el.previewVideo.onloadedmetadata = () => {
       state.danceDuration = el.previewVideo.duration;
@@ -426,6 +435,9 @@ async function startAnalysis() {
       const mbTot = (tot / (1024 * 1024)).toFixed(1);
       el.statusDesc.textContent = `Tải file nhạc: ${pct}% (${mbUp} / ${mbTot} MB)...`;
       if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(pct * 0.15) + '%';
+      if (el.uploadSpeedText) el.uploadSpeedText.textContent = `⚡ ${(speed || 0).toFixed(1)} MB/s`;
+      if (el.uploadMbText) el.uploadMbText.textContent = `📦 ${mbUp} / ${mbTot} MB (nhạc)`;
+      if (el.uploadEtaText) el.uploadEtaText.textContent = eta > 0 ? `⏱️ Còn ~${eta}s` : '⏱️ Hoàn tất...';
     });
 
     // 2. Tải video nhảy (dồn 100% băng thông tải từng lát 3MB ổn định tuyệt đối)
@@ -437,12 +449,15 @@ async function startAnalysis() {
       const etaStr = eta > 0 ? ` · Còn ~${eta}s` : '';
       el.statusDesc.textContent = `Tải video nhảy: ${pct}% (${mbUp} / ${mbTot} MB)${speedStr}${etaStr}...`;
       if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(15 + pct * 0.85) + '%';
+      if (el.uploadSpeedText) el.uploadSpeedText.textContent = `⚡ ${(speed || 0).toFixed(1)} MB/s`;
+      if (el.uploadMbText) el.uploadMbText.textContent = `📦 ${mbUp} / ${mbTot} MB`;
+      if (el.uploadEtaText) el.uploadEtaText.textContent = eta > 0 ? `⏱️ Còn ~${eta}s` : '⏱️ Đang ghép...';
     });
 
     if (el.uploadProgressBar) el.uploadProgressBar.style.width = '100%';
     setTimeout(() => {
       if (el.uploadProgressWrap) el.uploadProgressWrap.classList.add('hidden');
-    }, 400);
+    }, 600);
 
     // 3. Trigger server analysis (FFmpeg Multi-thread + Normalized Cross-Correlation)
     el.statusTitle.textContent = 'Đang phân tích bước sóng & nhịp điệu...';
@@ -1191,30 +1206,161 @@ async function runExportPipeline() {
   }
 }
 
+const currentDownloadInfo = {
+  url: null,
+  filename: null,
+  blob: null
+};
+
 function onExportComplete(downloadUrl, filename) {
   el.exportProgressBox.classList.add('hidden');
   el.exportResultBox.classList.remove('hidden');
 
+  currentDownloadInfo.url = downloadUrl;
+  currentDownloadInfo.filename = filename || `StyleFit_Synced_${Date.now()}.mp4`;
+  currentDownloadInfo.blob = null;
+
+  // Stream preview video with Range support
   el.finalVideo.src = downloadUrl;
-  el.btnDownload.href = downloadUrl;
-  el.btnDownload.setAttribute('download', filename || `StyleFit_Synced_${Date.now()}.mp4`);
+
+  // Prepare direct download link for fallback
+  const directUrl = `${downloadUrl}?download=1`;
+  if (el.linkDirectDownload) {
+    el.linkDirectDownload.href = directUrl;
+    el.linkDirectDownload.setAttribute('download', currentDownloadInfo.filename);
+  }
+
+  if (el.downloadBtnText) {
+    el.downloadBtnText.textContent = 'Tải Video Về Máy (MP4)';
+  }
+}
+
+async function downloadSyncedVideo() {
+  if (!currentDownloadInfo.url) return;
+
+  const btn = el.btnDownload;
+  const btnText = el.downloadBtnText || btn;
+  const filename = currentDownloadInfo.filename;
+  const directUrl = `${currentDownloadInfo.url}?download=1`;
+
+  // If already fetched and cached as blob, download instantly
+  if (currentDownloadInfo.blob) {
+    const blobUrl = URL.createObjectURL(currentDownloadInfo.blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    return;
+  }
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btnText.textContent = 'Đang tải về máy: 0%...';
+
+  try {
+    const response = await fetch(currentDownloadInfo.url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const contentLength = response.headers.get('content-length');
+    const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+
+    let receivedBytes = 0;
+    const reader = response.body.getReader();
+    const chunks = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      receivedBytes += value.length;
+      if (totalBytes > 0) {
+        const pct = Math.min(99, Math.round((receivedBytes / totalBytes) * 100));
+        btnText.textContent = `Đang tải về: ${pct}%...`;
+      } else {
+        const mb = (receivedBytes / (1024 * 1024)).toFixed(1);
+        btnText.textContent = `Đang tải: ${mb} MB...`;
+      }
+    }
+
+    const blob = new Blob(chunks, { type: 'video/mp4' });
+    currentDownloadInfo.blob = blob;
+
+    btnText.textContent = '💾 Đang lưu file...';
+
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+
+    btnText.textContent = '✅ Đã Tải Xong!';
+    setTimeout(() => {
+      btnText.textContent = 'Tải Lại Video (MP4)';
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }, 2500);
+
+  } catch (err) {
+    console.warn('Lỗi tải video bằng Blob, mở link tải trực tiếp:', err);
+    btnText.textContent = 'Tải Video Về Máy (MP4)';
+    btn.disabled = false;
+    btn.classList.remove('loading');
+
+    // Fallback: trigger direct link navigation
+    const a = document.createElement('a');
+    a.href = directUrl;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 }
 
 async function shareVideo() {
-  if (navigator.share) {
+  if (!currentDownloadInfo.url) return;
+  const filename = currentDownloadInfo.filename || 'StyleFit_Synced.mp4';
+
+  // Check if Web Share API with files is supported (iOS Safari / Android Chrome)
+  if (navigator.canShare) {
     try {
-      await navigator.share({
-        title: 'Video StyleFit Step Dance đã ghép nhạc chuẩn',
-        text: 'Video ghép nhạc tự động bằng StyleFit Ghép Nhạc!',
-        url: window.location.href
-      });
+      let fileToShare = null;
+      if (currentDownloadInfo.blob) {
+        fileToShare = new File([currentDownloadInfo.blob], filename, { type: 'video/mp4' });
+      } else {
+        if (el.btnShare) el.btnShare.textContent = '⏳ Đang chuẩn bị file...';
+        const res = await fetch(currentDownloadInfo.url);
+        const blob = await res.blob();
+        currentDownloadInfo.blob = blob;
+        fileToShare = new File([blob], filename, { type: 'video/mp4' });
+        if (el.btnShare) el.btnShare.innerHTML = '<span class="btn-icon">📱</span><span>Lưu Vào Thư Viện / Đăng TikTok</span>';
+      }
+
+      if (fileToShare && navigator.canShare({ files: [fileToShare] })) {
+        await navigator.share({
+          files: [fileToShare],
+          title: 'Video StyleFit Step Dance',
+          text: 'Video nhảy ghép nhạc chuẩn StyleFit'
+        });
+        return;
+      }
     } catch (err) {
-      console.log('Share canceled or not supported:', err);
+      if (err.name !== 'AbortError') {
+        console.warn('Native share failed:', err);
+      } else {
+        return;
+      }
     }
-  } else {
-    // Fallback: trigger download directly
-    el.btnDownload.click();
   }
+
+  // Fallback to regular download
+  downloadSyncedVideo();
 }
 
 function resetAll() {
@@ -1336,4 +1482,7 @@ window.closeInAppBanner = closeInAppBanner;
 window.switchBranch = switchBranch;
 window.toggleFaq = toggleFaq;
 window.handleLeadSubmit = handleLeadSubmit;
+window.downloadSyncedVideo = downloadSyncedVideo;
+window.shareVideo = shareVideo;
+window.resetAll = resetAll;
 

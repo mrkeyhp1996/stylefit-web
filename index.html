@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=3.0">
+  <link rel="stylesheet" href="style.css?v=4.0">
 </head>
 <body>
 
@@ -303,8 +303,15 @@
             <div class="status-details">
               <h4 id="statusTitle">Đang phân tích bước sóng âm thanh...</h4>
               <p id="statusDesc">Hệ thống đang trích xuất nhịp bass và phổ tần số để tìm độ lệch...</p>
-              <div id="uploadProgressWrap" class="hidden" style="margin-top: 8px; width: 100%; background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; overflow: hidden;">
-                <div id="uploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #FE7409, #FF9100); transition: width 0.2s ease;"></div>
+              <div id="uploadProgressWrap" class="upload-progress-container hidden">
+                <div class="upload-progress-track">
+                  <div id="uploadProgressBar" class="upload-progress-fill"></div>
+                </div>
+                <div id="uploadStatsRow" class="upload-stats-row">
+                  <span id="uploadSpeedText" class="upload-stat-badge">⚡ 0.0 MB/s</span>
+                  <span id="uploadMbText" class="upload-stat-badge">📦 0 / 0 MB</span>
+                  <span id="uploadEtaText" class="upload-stat-badge">⏱️ Còn ~--s</span>
+                </div>
               </div>
             </div>
             <div class="status-badge" id="confidenceBadge">Đang đo</div>
@@ -580,15 +587,20 @@
               </div>
 
               <div class="download-actions">
-                <a id="btnDownload" class="btn-primary btn-download" download="stylefit_synced_video.mp4">
+                <button type="button" id="btnDownload" class="btn-primary btn-download" onclick="downloadSyncedVideo()">
                   <span class="btn-icon">📥</span>
-                  <span>Tải Video Về Máy (MP4)</span>
-                </a>
+                  <span id="downloadBtnText">Tải Video Về Máy (MP4)</span>
+                </button>
 
-                <button id="btnShare" class="btn-secondary btn-share" onclick="shareVideo()">
+                <button type="button" id="btnShare" class="btn-secondary btn-share" onclick="shareVideo()">
                   <span class="btn-icon">📱</span>
                   <span>Lưu Vào Thư Viện / Đăng TikTok</span>
                 </button>
+              </div>
+
+              <div id="downloadFallbackRow" class="download-fallback-row" style="margin-top:12px;text-align:center;">
+                <span style="font-size:0.85rem;color:var(--text-dim);">Nếu tải bị chậm hoặc lỗi: </span>
+                <a id="linkDirectDownload" href="#" target="_blank" download style="font-size:0.85rem;color:var(--accent-cyan);text-decoration:underline;">🔗 Mở link tải trực tiếp dự phòng</a>
               </div>
 
               <div class="btn-again-wrap">
@@ -1085,7 +1097,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="sync-engine.js?v=3.5"></script>
-  <script src="app.js?v=3.5"></script>
+  <script src="sync-engine.js?v=4.0"></script>
+  <script src="app.js?v=4.0"></script>
 </body>
 </html>

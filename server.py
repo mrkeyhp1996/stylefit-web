@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from syncfinder import find_offset
 
@@ -368,9 +368,18 @@ async def render_video(
     # Video filters & encoding
     is_trimmed = (trim_start > 0) or (duration is not None)
     if resolutionMode == "tiktok_1080p":
-        # Ultra-fast portrait 1080x1920 with bicubic scale & mobile-optimized fastdecode
-        vf = "scale=1080:1920:force_original_aspect_ratio=decrease:flags=bicubic,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
-        video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
+        vmeta = await asyncio.to_thread(probe_video, nhay)
+        w, h = vmeta.get("width", 0), vmeta.get("height", 0)
+        if w == 1080 and h == 1920 and not is_trimmed:
+            # Already 1080x1920 portrait and not trimmed -> stream copy (instant 0.2s)
+            video_opts = ["-c:v", "copy"]
+        elif w == 1080 and h == 1920 and is_trimmed:
+            # Already 1080x1920 portrait -> re-encode frame-accurate without scaling filter (much faster)
+            video_opts = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
+        else:
+            # Scale & pad to 1080x1920 portrait
+            vf = "scale=1080:1920:force_original_aspect_ratio=decrease:flags=bicubic,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
+            video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
     elif is_trimmed:
         # Re-encode frame-accurate with ultrafast speed & pristine quality
         video_opts = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
@@ -438,6 +447,37 @@ async def register_lead(request: Request):
         "ok": True,
         "message": f"Cảm ơn {name}! StyleFit đã nhận thông tin và sẽ gọi tư vấn trong 15 phút.",
     }
+
+
+@app.get("/exports/{filename}")
+async def get_export(filename: str, download: Optional[bool] = False):
+    """
+    Download or stream rendered video with byte-range and Content-Disposition support.
+    download=True sends attachment header to prevent browser aborts on mobile / Cloudflare tunnel.
+    """
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Tên file không hợp lệ")
+    file_path = EXPORTS_DIR / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File video không tồn tại hoặc đã hết hạn")
+
+    disp = "attachment" if download else "inline"
+    return FileResponse(
+        path=str(file_path),
+        filename=filename if download else None,
+        media_type="video/mp4",
+        content_disposition_type=disp,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=3600"
+        }
+    )
+
+
+@app.get("/api/download/{filename}")
+async def download_file(filename: str):
+    """Direct forced-attachment download link."""
+    return await get_export(filename, download=True)
 
 
 app.mount("/exports", StaticFiles(directory=str(EXPORTS_DIR)), name="exports")

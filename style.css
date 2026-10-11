@@ -3016,3 +3016,67 @@ body::before {
   color: var(--primary) !important;
   border-color: rgba(254, 116, 9, 0.3) !important;
 }
+
+/* Upload Progress & Live Stats Row */
+.upload-progress-container {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.upload-progress-track {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.upload-progress-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #FE7409 0%, #FF9100 50%, #00E5FF 100%);
+  border-radius: 4px;
+  transition: width 0.25s ease-out;
+  box-shadow: 0 0 10px rgba(254, 116, 9, 0.5);
+}
+
+.upload-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.upload-stat-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
+}
+
+.upload-stat-badge#uploadSpeedText {
+  color: var(--accent-cyan);
+  border-color: rgba(0, 229, 255, 0.3);
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.upload-stat-badge#uploadEtaText {
+  color: var(--primary);
+  border-color: rgba(254, 116, 9, 0.3);
+  background: rgba(254, 116, 9, 0.08);
+}
+
+.btn-download.loading {
+  background: #333 !important;
+  color: #aaa !important;
+  cursor: wait !important;
+  pointer-events: none;
+}
+

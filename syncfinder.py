@@ -10,6 +10,7 @@ Convention (used everywhere, UI + server):
 i.e. dance[t] ~= original[t - offset].
 """
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 from scipy import signal
 
@@ -85,8 +86,12 @@ def extract_peaks(samples, num_bins=500):
 
 def find_offset(dance_path, original_path, sr=SR):
     """Return dict(offset_ms, confidence, drift_ms, dance_peaks, original_peaks...)."""
-    dance_raw = decode_audio(dance_path, sr)
-    orig_raw = decode_audio(original_path, sr)
+    # Decode both audio streams in parallel (2x FFmpeg subprocesses simultaneously)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_dance = pool.submit(decode_audio, dance_path, sr)
+        f_orig  = pool.submit(decode_audio, original_path, sr)
+        dance_raw = f_dance.result()
+        orig_raw  = f_orig.result()
     dance = _prep(dance_raw, sr)
     orig = _prep(orig_raw, sr)
 
