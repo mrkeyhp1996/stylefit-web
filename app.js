@@ -507,18 +507,19 @@ async function startAnalysis() {
   el.stepNav1.classList.add('completed');
   el.stepNav2.classList.add('active');
 
-  // LOCK Preview Player while calculating
-  el.btnPlayPause.disabled = true;
-  el.btnPlayPause.style.opacity = '0.6';
-  el.btnPlayPause.style.cursor = 'not-allowed';
-  el.playIcon.textContent = '⏳';
-  el.playText.textContent = 'Đang đồng bộ...';
-  el.btnOverlayPlay.style.display = 'none';
+  // MỞ KHÓA PREVIEW PLAYER NGAY LẬP TỨC: Cho phép HLV xem và nghe video ngay trong lúc đồng bộ nền!
+  setupPreviewDurations();
+  el.btnPlayPause.disabled = false;
+  el.btnPlayPause.style.opacity = '1';
+  el.btnPlayPause.style.cursor = 'pointer';
+  el.playIcon.textContent = '▶';
+  el.playText.textContent = 'Phát Xem Video';
+  el.btnOverlayPlay.style.display = 'flex';
 
   el.statusIcon.textContent = '⚡';
-  el.statusTitle.textContent = 'Đang đồng bộ siêu tốc...';
-  el.statusDesc.textContent = 'Đang quét mẫu âm thanh để tìm điểm khớp nhịp trong vài giây...';
-  el.confidenceBadge.textContent = 'Siêu tốc';
+  el.statusTitle.textContent = 'Đang đồng bộ nhịp tự động...';
+  el.statusDesc.textContent = 'Hệ thống đang quét nhịp âm thanh. Bạn có thể bấm Phát để xem và chỉnh video ngay bên dưới!';
+  el.confidenceBadge.textContent = 'Đang đồng bộ';
   el.confidenceBadge.className = 'status-badge';
 
   if (el.uploadProgressWrap) el.uploadProgressWrap.classList.remove('hidden');
@@ -775,21 +776,25 @@ function onOffsetChanged() {
 // 6. SYNCHRONIZED PREVIEW PLAYER
 // ==========================================
 function setupPreviewDurations() {
-  el.previewVideo.addEventListener('loadedmetadata', () => {
+  if (el.previewVideo && el.previewVideo.duration && !isNaN(el.previewVideo.duration)) {
     el.durationTimeText.textContent = formatSeconds(el.previewVideo.duration);
     updateScrubberTimeDisplay(el.previewVideo.currentTime);
-  });
-  el.previewVideo.addEventListener('timeupdate', () => {
+  }
+  el.previewVideo.onloadedmetadata = () => {
+    el.durationTimeText.textContent = formatSeconds(el.previewVideo.duration);
+    updateScrubberTimeDisplay(el.previewVideo.currentTime);
+  };
+  el.previewVideo.ontimeupdate = () => {
     el.currentTimeText.textContent = formatSeconds(el.previewVideo.currentTime);
     if (el.videoScrubber && el.previewVideo.duration) {
       el.videoScrubber.value = (el.previewVideo.currentTime / el.previewVideo.duration) * 100;
     }
     updateScrubberTimeDisplay(el.previewVideo.currentTime);
     updatePlayheadPosition();
-  });
-  el.previewVideo.addEventListener('ended', () => {
+  };
+  el.previewVideo.onended = () => {
     stopPreview();
-  });
+  };
 }
 
 function onVideoScrubberInput(val) {
@@ -887,8 +892,18 @@ function startPreview() {
   el.playText.textContent = 'Tạm Dừng';
   el.btnOverlayPlay.style.display = 'none';
 
+  const roomVol = el.roomVolume ? (parseInt(el.roomVolume.value, 10) / 100) : 0;
+  if (!state.hasSynced && state.currentOffsetMs === 0) {
+    // Trước khi có offset: mở tiếng video để HLV xem và nghe tiếng phòng tập
+    el.previewVideo.muted = false;
+    el.previewVideo.volume = 1.0;
+  } else {
+    el.previewVideo.muted = (roomVol === 0);
+    el.previewVideo.volume = roomVol;
+  }
+
   const startTime = el.previewVideo.currentTime;
-  el.previewVideo.play();
+  el.previewVideo.play().catch(e => console.log('Video play error:', e));
   startAudioPreview(startTime);
 }
 

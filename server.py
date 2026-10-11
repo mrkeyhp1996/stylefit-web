@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import uuid
 import shutil
@@ -6,6 +7,12 @@ import asyncio
 import subprocess
 from pathlib import Path
 from typing import Optional
+
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
@@ -361,8 +368,9 @@ async def analyze_fast(sessionId: str = Form(...)):
             "videoMeta": video_meta,
         }
     except Exception as e:
-        print("Fast sync fallback needed:", e)
-        return {"ok": False, "fallbackNeeded": True, "detail": str(e)}
+        err_msg = str(e).encode('ascii', errors='replace').decode('ascii')
+        print(f"Fast sync fallback needed: {err_msg}")
+        return {"ok": False, "fallbackNeeded": True, "detail": err_msg}
     finally:
         if temp_head.exists():
             try:
