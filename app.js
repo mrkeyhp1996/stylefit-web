@@ -278,35 +278,44 @@ async function getUploadedChunks(sessionId, fileType) {
   return { completed: false, uploadedChunks: [] };
 }
 
-async function uploadFileInChunks(file, fileType, sessionId, onProgress, maxChunks = null) {
+async function uploadFileInChunks(file, fileType, sessionId, onProgress, targetIndices = null) {
   const totalSize = file.size;
   const totalChunks = Math.max(1, Math.ceil(totalSize / CHUNK_SIZE));
-  const targetChunksCount = (maxChunks !== null && maxChunks > 0) ? Math.min(maxChunks, totalChunks) : totalChunks;
+
+  let chunksToUpload = [];
+  if (Array.isArray(targetIndices)) {
+    chunksToUpload = [...new Set(targetIndices.filter(i => i >= 0 && i < totalChunks))];
+  } else if (typeof targetIndices === 'number' && targetIndices > 0) {
+    for (let i = 0; i < Math.min(targetIndices, totalChunks); i++) chunksToUpload.push(i);
+  } else {
+    for (let i = 0; i < totalChunks; i++) chunksToUpload.push(i);
+  }
+  const targetChunksCount = chunksToUpload.length;
 
   // Check already uploaded chunks on server to support instant resume
   const status = await getUploadedChunks(sessionId, fileType);
-  if (status.completed && (maxChunks === null || maxChunks >= totalChunks)) {
+  if (status.completed && (targetIndices === null || targetChunksCount === totalChunks)) {
     if (onProgress) onProgress(100, totalSize, totalSize, 0, 0);
     return;
   }
   const uploadedSet = new Set(status.uploadedChunks || []);
   const startTime = Date.now();
   
-  // Calculate initial uploaded bytes from already uploaded chunks
+  // Calculate initial uploaded bytes
   let uploadedBytesCount = 0;
   for (let idx of uploadedSet) {
-    if (idx < targetChunksCount) {
+    if (chunksToUpload.includes(idx)) {
       const s = idx * CHUNK_SIZE;
       const e = Math.min(totalSize, s + CHUNK_SIZE);
       uploadedBytesCount += (e - s);
     }
   }
 
-  // Build queue of chunks to upload up to targetChunksCount
+  // Build queue of chunks to upload
   const queue = [];
-  for (let i = 0; i < targetChunksCount; i++) {
-    if (!uploadedSet.has(i)) {
-      queue.push(i);
+  for (let idx of chunksToUpload) {
+    if (!uploadedSet.has(idx)) {
+      queue.push(idx);
     }
   }
 
@@ -316,8 +325,8 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress, maxChun
   }
 
   let completedChunks = 0;
-  for (let i = 0; i < targetChunksCount; i++) {
-    if (uploadedSet.has(i)) completedChunks++;
+  for (let idx of chunksToUpload) {
+    if (uploadedSet.has(idx)) completedChunks++;
   }
   let activeError = null;
 
@@ -382,8 +391,8 @@ async function uploadFileInChunks(file, fileType, sessionId, onProgress, maxChun
     }
   }
 
-  // Chạy 2 luồng song song (Dual-Stream) tận dụng tối đa băng thông HTTP/2 và đường truyền 4G
-  const CONCURRENCY = Math.min(2, queue.length);
+  // Chạy 3 luồng song song (Triple-Stream) tận dụng tối đa băng thông HTTP/2 và đường truyền di động
+  const CONCURRENCY = Math.min(3, queue.length);
   async function worker() {
     while (queue.length > 0) {
       if (activeError) throw activeError;
@@ -410,6 +419,7 @@ async function uploadRemainingChunks(file, fileType, sessionId, onProgress) {
 // 3. STEP TRANSITION & ANALYSIS
 // ==========================================
 function applyAnalysisResult(r) {
+  state.hasSynced = true;
   state.sessionId = r.sessionId;
   state.autoOffsetMs = Math.round(r.offsetMs);
   state.currentOffsetMs = state.autoOffsetMs;
@@ -546,17 +556,18 @@ async function startAnalysis() {
 
     const totalVideoChunks = Math.max(1, Math.ceil(state.fileNhay.size / CHUNK_SIZE));
 
-    // 2. Chế độ Siêu Tốc: Nếu video lớn (> 15MB), tải trước 5 lát cắt đầu (~15MB) để dò nhịp ngay trong 3-5 giây!
+    // 2. Chế độ Siêu Tốc: Nếu video lớn (> 15MB), tải trước 5 lát cắt đầu (~15MB) + lát cắt cuối (moov atom) để dò nhịp ngay trong 3-5 giây!
     if (totalVideoChunks > 5) {
-      el.statusTitle.textContent = 'Đang dò nhịp siêu tốc (quét mẫu 15MB đầu)...';
+      el.statusTitle.textContent = 'Đang dò nhịp siêu tốc (quét mẫu âm thanh & moov)...';
+      const fastIndices = [0, 1, 2, 3, 4, totalVideoChunks - 1];
       await uploadFileInChunks(state.fileNhay, 'nhay', sessionId, (pct, up, tot, speed, eta) => {
         const mbUp = (up / (1024 * 1024)).toFixed(1);
-        el.statusDesc.textContent = `Đang quét mẫu video: ${mbUp} / 15 MB...`;
+        el.statusDesc.textContent = `Đang quét mẫu video: ${mbUp} / 18 MB...`;
         if (el.uploadProgressBar) el.uploadProgressBar.style.width = Math.round(20 + pct * 0.7) + '%';
         if (el.uploadSpeedText) el.uploadSpeedText.textContent = `⚡ ${(speed || 0).toFixed(1)} MB/s`;
-        if (el.uploadMbText) el.uploadMbText.textContent = `📦 ${mbUp} MB (mẫu đầu)`;
+        if (el.uploadMbText) el.uploadMbText.textContent = `📦 ${mbUp} MB (mẫu đầu & cuối)`;
         if (el.uploadEtaText) el.uploadEtaText.textContent = '⏱️ Dò nhịp ngay...';
-      }, 5);
+      }, fastIndices);
 
       // Thử gọi /api/analyze_fast
       try {
@@ -776,22 +787,36 @@ function onOffsetChanged() {
 // 6. SYNCHRONIZED PREVIEW PLAYER
 // ==========================================
 function setupPreviewDurations() {
-  if (el.previewVideo && el.previewVideo.duration && !isNaN(el.previewVideo.duration)) {
-    el.durationTimeText.textContent = formatSeconds(el.previewVideo.duration);
-    updateScrubberTimeDisplay(el.previewVideo.currentTime);
+  if (!el.previewVideo) return;
+  if (!el.previewVideo.src && state.urlNhayVideo) {
+    el.previewVideo.src = state.urlNhayVideo;
   }
-  el.previewVideo.onloadedmetadata = () => {
-    el.durationTimeText.textContent = formatSeconds(el.previewVideo.duration);
-    updateScrubberTimeDisplay(el.previewVideo.currentTime);
+
+  const updateTimes = () => {
+    if (el.previewVideo.duration && !isNaN(el.previewVideo.duration) && isFinite(el.previewVideo.duration)) {
+      state.danceDuration = el.previewVideo.duration;
+      if (el.durationTimeText) el.durationTimeText.textContent = formatSeconds(el.previewVideo.duration);
+      updateScrubberTimeDisplay(el.previewVideo.currentTime);
+    }
   };
+
+  updateTimes();
+  el.previewVideo.removeEventListener('loadedmetadata', updateTimes);
+  el.previewVideo.addEventListener('loadedmetadata', updateTimes);
+  el.previewVideo.removeEventListener('durationchange', updateTimes);
+  el.previewVideo.addEventListener('durationchange', updateTimes);
+  el.previewVideo.removeEventListener('canplay', updateTimes);
+  el.previewVideo.addEventListener('canplay', updateTimes);
+
   el.previewVideo.ontimeupdate = () => {
-    el.currentTimeText.textContent = formatSeconds(el.previewVideo.currentTime);
-    if (el.videoScrubber && el.previewVideo.duration) {
+    if (el.currentTimeText) el.currentTimeText.textContent = formatSeconds(el.previewVideo.currentTime);
+    if (el.videoScrubber && el.previewVideo.duration && !isNaN(el.previewVideo.duration)) {
       el.videoScrubber.value = (el.previewVideo.currentTime / el.previewVideo.duration) * 100;
     }
     updateScrubberTimeDisplay(el.previewVideo.currentTime);
     updatePlayheadPosition();
   };
+
   el.previewVideo.onended = () => {
     stopPreview();
   };
@@ -805,7 +830,9 @@ function onVideoScrubberInput(val) {
   updatePlayheadPosition();
   if (state.isPlaying) {
     stopAudioPreview();
-    startAudioPreview(targetTime);
+    if (state.hasSynced || state.currentOffsetMs !== 0) {
+      startAudioPreview(targetTime);
+    }
   }
 }
 
@@ -829,12 +856,15 @@ function stepFrame(deltaSec) {
   updatePlayheadPosition();
   if (state.isPlaying) {
     stopAudioPreview();
-    startAudioPreview(newTime);
+    if (state.hasSynced || state.currentOffsetMs !== 0) {
+      startAudioPreview(newTime);
+    }
   }
 }
 
 function setBeat1AtCurrentFrame() {
   if (!el.previewVideo) return;
+  state.hasSynced = true; // Mark as synced!
   const curTime = el.previewVideo.currentTime;
   const newOffsetMs = Math.round(curTime * 1000);
 
@@ -888,9 +918,9 @@ function togglePlayPreview() {
 
 function startPreview() {
   state.isPlaying = true;
-  el.playIcon.textContent = '⏸';
-  el.playText.textContent = 'Tạm Dừng';
-  el.btnOverlayPlay.style.display = 'none';
+  if (el.playIcon) el.playIcon.textContent = '⏸';
+  if (el.playText) el.playText.textContent = 'Tạm Dừng';
+  if (el.btnOverlayPlay) el.btnOverlayPlay.style.display = 'none';
 
   const roomVol = el.roomVolume ? (parseInt(el.roomVolume.value, 10) / 100) : 0;
   if (!state.hasSynced && state.currentOffsetMs === 0) {
@@ -898,13 +928,20 @@ function startPreview() {
     el.previewVideo.muted = false;
     el.previewVideo.volume = 1.0;
   } else {
+    // Đã có offset: phát blend nhạc gốc và tiếng phòng
     el.previewVideo.muted = (roomVol === 0);
     el.previewVideo.volume = roomVol;
+    startAudioPreview(el.previewVideo.currentTime);
   }
 
-  const startTime = el.previewVideo.currentTime;
-  el.previewVideo.play().catch(e => console.log('Video play error:', e));
-  startAudioPreview(startTime);
+  const playPromise = el.previewVideo.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(e => {
+      console.warn('Video play warning:', e);
+      el.previewVideo.muted = true;
+      el.previewVideo.play().catch(err => console.log('Muted fallback failed:', err));
+    });
+  }
 }
 
 function stopPreview() {
@@ -1591,4 +1628,311 @@ window.handleLeadSubmit = handleLeadSubmit;
 window.downloadSyncedVideo = downloadSyncedVideo;
 window.shareVideo = shareVideo;
 window.resetAll = resetAll;
+
+/* ==========================================================================
+   STYLEFIT SAVEFROM MEDIA DOWNLOADER LOGIC
+   ========================================================================== */
+
+let currentMediaData = null;
+
+function initMediaDownloader() {
+  const urlInput = document.getElementById('downloaderUrlInput');
+  const btnFetch = document.getElementById('btnFetchMedia');
+  const btnPaste = document.getElementById('btnPasteUrl');
+  const btnClear = document.getElementById('btnClearUrl');
+
+  if (!urlInput || !btnFetch) return;
+
+  // Toggle clear button on input change
+  urlInput.addEventListener('input', () => {
+    if (btnClear) {
+      if (urlInput.value.trim().length > 0) {
+        btnClear.classList.remove('hidden');
+      } else {
+        btnClear.classList.add('hidden');
+      }
+    }
+  });
+
+  // Clear button click
+  btnClear?.addEventListener('click', () => {
+    urlInput.value = '';
+    btnClear.classList.add('hidden');
+    urlInput.focus();
+    hideDownloaderAlert();
+    document.getElementById('downloaderResult')?.classList.add('hidden');
+  });
+
+  // Paste button click
+  btnPaste?.addEventListener('click', async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          urlInput.value = text.trim();
+          btnClear?.classList.remove('hidden');
+          handleFetchMedia();
+        }
+      } else {
+        urlInput.focus();
+        showDownloaderAlert('Vui lòng dùng phím Ctrl + V (hoặc giữ màn hình chọn Dán) trên thiết bị của bạn.', 'Không thể đọc clipboard:');
+      }
+    } catch (err) {
+      urlInput.focus();
+      showDownloaderAlert('Trình duyệt chưa cấp quyền đọc clipboard. Vui lòng dán trực tiếp vào ô nhập!', 'Lưu ý:');
+    }
+  });
+
+  // Enter key press
+  urlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFetchMedia();
+    }
+  });
+
+  // Submit button click
+  btnFetch.addEventListener('click', handleFetchMedia);
+}
+
+function showDownloaderAlert(text, title = 'Thông báo:') {
+  const alertBox = document.getElementById('downloaderAlert');
+  const alertTitle = document.getElementById('downloaderAlertTitle');
+  const alertText = document.getElementById('downloaderAlertText');
+  if (!alertBox || !alertText) return;
+
+  if (alertTitle) alertTitle.textContent = title;
+  alertText.textContent = text;
+  alertBox.classList.remove('hidden');
+}
+
+function hideDownloaderAlert() {
+  const alertBox = document.getElementById('downloaderAlert');
+  if (alertBox) alertBox.classList.add('hidden');
+}
+
+function switchDownloaderTab(tab) {
+  const tabAudio = document.getElementById('tabBtnAudio');
+  const tabVideo = document.getElementById('tabBtnVideo');
+  const audioList = document.getElementById('audioFormatsContainer');
+  const videoList = document.getElementById('videoFormatsContainer');
+
+  if (tab === 'audio') {
+    tabAudio?.classList.add('active');
+    tabVideo?.classList.remove('active');
+    audioList?.classList.remove('hidden');
+    videoList?.classList.add('hidden');
+  } else {
+    tabVideo?.classList.add('active');
+    tabAudio?.classList.remove('active');
+    videoList?.classList.remove('hidden');
+    audioList?.classList.add('hidden');
+  }
+}
+
+async function handleFetchMedia() {
+  const urlInput = document.getElementById('downloaderUrlInput');
+  const btnFetch = document.getElementById('btnFetchMedia');
+  const loadingBox = document.getElementById('downloaderLoading');
+  const resultCard = document.getElementById('downloaderResult');
+
+  const rawUrl = urlInput?.value.trim();
+  if (!rawUrl) {
+    showDownloaderAlert('Vui lòng dán đường link YouTube, Facebook hoặc SoundCloud vào ô nhập.', 'Chưa nhập link:');
+    urlInput?.focus();
+    return;
+  }
+
+  // Validate supported domain on client
+  const lower = rawUrl.toLowerCase();
+  const isSupported = ['youtube.com', 'youtu.be', 'soundcloud.com', 'facebook.com', 'fb.watch', 'fb.com'].some(d => lower.includes(d));
+  if (!isSupported) {
+    showDownloaderAlert('Hệ thống hiện hỗ trợ link từ YouTube, Facebook (Reels/Video) và SoundCloud. Vui lòng kiểm tra lại!', 'Nền tảng chưa hỗ trợ:');
+    return;
+  }
+
+  hideDownloaderAlert();
+  resultCard?.classList.add('hidden');
+  loadingBox?.classList.remove('hidden');
+
+  if (btnFetch) {
+    btnFetch.disabled = true;
+    btnFetch.innerHTML = '<span class="btn-fetch-text">ĐANG QUÉT...</span><span class="btn-fetch-icon">⏳</span>';
+  }
+
+  try {
+    const res = await fetch('/api/downloader/info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: rawUrl })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || 'Không thể lấy thông tin bài hát/video. Vui lòng thử lại sau.');
+    }
+
+    currentMediaData = data;
+    renderMediaResult(data);
+
+  } catch (err) {
+    showDownloaderAlert(err.message || 'Đã có lỗi xảy ra khi phân tích liên kết.', 'Lỗi tải:');
+  } finally {
+    loadingBox?.classList.add('hidden');
+    if (btnFetch) {
+      btnFetch.disabled = false;
+      btnFetch.innerHTML = '<span class="btn-fetch-text">LẤY LINK TẢI</span><span class="btn-fetch-icon">⚡</span>';
+    }
+  }
+}
+
+function renderMediaResult(data) {
+  const resultCard = document.getElementById('downloaderResult');
+  const thumbImg = document.getElementById('resultThumb');
+  const durationBadge = document.getElementById('resultDuration');
+  const platformBadge = document.getElementById('resultPlatformBadge');
+  const titleEl = document.getElementById('resultTitle');
+  const authorEl = document.getElementById('resultAuthor');
+  const audioList = document.getElementById('audioFormatsContainer');
+  const videoList = document.getElementById('videoFormatsContainer');
+  const tabVideo = document.getElementById('tabBtnVideo');
+
+  if (!resultCard) return;
+
+  // Set meta
+  if (thumbImg) thumbImg.src = data.thumbnail || 'stylefit-logo.svg';
+  if (durationBadge) durationBadge.textContent = data.duration_formatted || 'N/A';
+  if (titleEl) titleEl.textContent = data.title || 'Bài hát / Video';
+  if (authorEl) authorEl.textContent = '👤 ' + (data.uploader || 'StyleFit Audio');
+
+  // Platform icon
+  if (platformBadge) {
+    if (data.platform === 'youtube') {
+      platformBadge.innerHTML = '▶️ YouTube';
+      platformBadge.style.color = '#FF0000';
+    } else if (data.platform === 'facebook') {
+      platformBadge.innerHTML = '📘 Facebook';
+      platformBadge.style.color = '#1877F2';
+    } else if (data.platform === 'soundcloud') {
+      platformBadge.innerHTML = '☁️ SoundCloud';
+      platformBadge.style.color = '#FF5500';
+    }
+  }
+
+  // Hide or show Video tab
+  const hasVideo = data.video_options && data.video_options.length > 0;
+  if (tabVideo) {
+    if (hasVideo) {
+      tabVideo.style.display = 'inline-block';
+    } else {
+      tabVideo.style.display = 'none';
+    }
+  }
+
+  // Render Audio Formats
+  if (audioList) {
+    audioList.innerHTML = '';
+    (data.audio_options || []).forEach(opt => {
+      const row = document.createElement('div');
+      row.className = 'format-item-row';
+      row.innerHTML = `
+        <div class="format-info-left">
+          <div class="format-name-box">
+            <span class="format-title">${opt.label}</span>
+            ${opt.badge ? `<span class="format-badge-tag rec">${opt.badge}</span>` : ''}
+          </div>
+          <span class="format-subtext">${opt.sublabel}</span>
+        </div>
+        <button type="button" class="btn-trigger-dl" onclick="triggerMediaDownload('${encodeURIComponent(data.url)}', '${opt.format_id}', this)">
+          <span>Tải Ngay</span>
+          <span>📥</span>
+        </button>
+      `;
+      audioList.appendChild(row);
+    });
+  }
+
+  // Render Video Formats
+  if (videoList) {
+    videoList.innerHTML = '';
+    if (hasVideo) {
+      data.video_options.forEach(opt => {
+        const row = document.createElement('div');
+        row.className = 'format-item-row';
+        const badgeClass = opt.badge === 'FULL HD' ? 'fhd' : (opt.badge === 'PHỔ BIẾN' ? 'pop' : 'rec');
+        row.innerHTML = `
+          <div class="format-info-left">
+            <div class="format-name-box">
+              <span class="format-title">${opt.label}</span>
+              ${opt.badge ? `<span class="format-badge-tag ${badgeClass}">${opt.badge}</span>` : ''}
+            </div>
+            <span class="format-subtext">${opt.sublabel}</span>
+          </div>
+          <button type="button" class="btn-trigger-dl" onclick="triggerMediaDownload('${encodeURIComponent(data.url)}', '${opt.format_id}', this)">
+            <span>Tải Video</span>
+            <span>🎬</span>
+          </button>
+        `;
+        videoList.appendChild(row);
+      });
+    }
+  }
+
+  // Default to audio tab
+  switchDownloaderTab('audio');
+
+  // Reveal card with smooth scroll
+  resultCard.classList.remove('hidden');
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function triggerMediaDownload(encodedUrl, formatId, btnEl) {
+  const url = decodeURIComponent(encodedUrl);
+  const progressBanner = document.getElementById('downloaderProgressBanner');
+
+  if (btnEl) {
+    btnEl.classList.add('processing');
+    btnEl.innerHTML = '<span>Đang xuất...</span> <span>⏳</span>';
+  }
+
+  if (progressBanner) {
+    progressBanner.classList.remove('hidden');
+  }
+
+  // Trigger download via hidden iframe or anchor to avoid page navigation
+  const downloadUrl = `/api/downloader/download?url=${encodeURIComponent(url)}&format_id=${encodeURIComponent(formatId)}`;
+  
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  // Reset button state after a few seconds
+  setTimeout(() => {
+    if (btnEl) {
+      btnEl.classList.remove('processing');
+      btnEl.innerHTML = formatId.startsWith('video') ? '<span>Tải Video</span> <span>🎬</span>' : '<span>Tải Ngay</span> <span>📥</span>';
+    }
+    if (progressBanner) {
+      setTimeout(() => {
+        progressBanner.classList.add('hidden');
+      }, 5000);
+    }
+  }, 4000);
+}
+
+// Initialize on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initMediaDownloader);
+} else {
+  initMediaDownloader();
+}
+
+// Global exposure
+window.switchDownloaderTab = switchDownloaderTab;
+window.hideDownloaderAlert = hideDownloaderAlert;
+window.triggerMediaDownload = triggerMediaDownload;
+
 

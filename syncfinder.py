@@ -22,8 +22,10 @@ def decode_audio(path, sr=SR):
     cmd = ["ffmpeg", "-v", "error", "-threads", "0", "-i", str(path), "-vn", "-sn", "-ac", "1",
            "-ar", str(sr), "-f", "f32le", "-"]
     out = subprocess.run(cmd, capture_output=True)
-    if out.returncode != 0 or not out.stdout:
-        raise RuntimeError("Không đọc được âm thanh: " + out.stderr.decode(errors="ignore")[:200])
+    # If ffmpeg returned non-zero due to truncated end, but still decoded at least 2 seconds of audio, keep it!
+    if not out.stdout or (out.returncode != 0 and len(out.stdout) < sr * 4 * 2):
+        err_msg = out.stderr.decode(errors="replace")[:200]
+        raise RuntimeError(f"Không đọc được âm thanh: {err_msg}")
     return np.frombuffer(out.stdout, dtype=np.float32).copy()
 
 

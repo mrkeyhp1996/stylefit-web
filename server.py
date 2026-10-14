@@ -18,8 +18,12 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from starlette.background import BackgroundTask
+from pydantic import BaseModel
+from urllib.parse import quote
 
 from syncfinder import find_offset
+from media_downloader import get_media_info, download_media, cleanup_temp_downloads
 
 BASE_DIR = Path(__file__).resolve().parent
 EXPORTS_DIR = BASE_DIR / "exports"
@@ -64,6 +68,10 @@ def cleanup_old_files():
                     shutil.rmtree(p) if p.is_dir() else p.unlink()
             except Exception:
                 pass
+    try:
+        cleanup_temp_downloads()
+    except Exception:
+        pass
 
 
 def run_ffmpeg(args):
@@ -293,10 +301,81 @@ async def analyze(
     }
 
 
+def assemble_smart_partial(parts, dest_path):
+    """
+    Assembles a partial MP4 file from head parts and optional tail part (where moov atom resides).
+    If moov atom is in tail, shifts stco/co64 entries by moov_size so FFmpeg can decode audio seamlessly!
+    """
+    head_parts = [p for p in parts if int(p.stem) < 5]
+    tail_parts = [p for p in parts if int(p.stem) >= 5]
+    tail_p = tail_parts[-1] if tail_parts else None
+
+    head_bytes = bytearray()
+    for p in head_parts:
+        if p.exists():
+            with open(p, "rb") as f:
+                head_bytes.extend(f.read())
+
+    if tail_p and tail_p.exists():
+        with open(tail_p, "rb") as f:
+            tail_bytes = f.read()
+
+        moov_idx = tail_bytes.rfind(b"moov")
+        if moov_idx >= 4:
+            moov_start = moov_idx - 4
+            moov_size = int.from_bytes(tail_bytes[moov_start:moov_start+4], "big")
+            moov_bytes = tail_bytes[moov_start:moov_start+moov_size]
+
+            if len(moov_bytes) >= 8 and len(head_bytes) >= 16:
+                ftyp_size = int.from_bytes(head_bytes[0:4], "big")
+                offset = ftyp_size
+                if len(head_bytes) > offset + 8 and head_bytes[offset+4:offset+8] == b"wide":
+                    offset += int.from_bytes(head_bytes[offset:offset+4], "big")
+
+                shift = moov_size
+                moov_arr = bytearray(moov_bytes)
+
+                # Adjust 32-bit chunk offsets (stco)
+                p_idx = 0
+                while True:
+                    pos = moov_arr.find(b"stco", p_idx)
+                    if pos == -1:
+                        break
+                    entry_count = int.from_bytes(moov_arr[pos+8:pos+12], "big")
+                    for i in range(entry_count):
+                        e_pos = pos + 12 + i * 4
+                        if e_pos + 4 <= len(moov_arr):
+                            old_val = int.from_bytes(moov_arr[e_pos:e_pos+4], "big")
+                            moov_arr[e_pos:e_pos+4] = (old_val + shift).to_bytes(4, "big")
+                    p_idx = pos + 4
+
+                # Adjust 64-bit chunk offsets (co64)
+                p_idx = 0
+                while True:
+                    pos = moov_arr.find(b"co64", p_idx)
+                    if pos == -1:
+                        break
+                    entry_count = int.from_bytes(moov_arr[pos+8:pos+12], "big")
+                    for i in range(entry_count):
+                        e_pos = pos + 12 + i * 8
+                        if e_pos + 8 <= len(moov_arr):
+                            old_val = int.from_bytes(moov_arr[e_pos:e_pos+8], "big")
+                            moov_arr[e_pos:e_pos+8] = (old_val + shift).to_bytes(8, "big")
+                    p_idx = pos + 4
+
+                faststart_data = head_bytes[:offset] + moov_arr + head_bytes[offset:]
+                with open(dest_path, "wb") as f:
+                    f.write(faststart_data)
+                return
+
+    with open(dest_path, "wb") as f:
+        f.write(head_bytes)
+
+
 @app.post("/api/analyze_fast")
 async def analyze_fast(sessionId: str = Form(...)):
     """
-    Fast Sync: Analyzes offset using the first 15MB (up to 5 chunks) of the dance video.
+    Fast Sync: Analyzes offset using the first 15MB (up to 5 chunks) of the dance video + tail chunk (moov).
     Returns offset in 0.3-0.5s so user can enter Studio and hear preview immediately,
     while remaining chunks upload in background.
     """
@@ -338,18 +417,8 @@ async def analyze_fast(sessionId: str = Form(...)):
     if len(parts) == 0:
         raise HTTPException(status_code=400, detail="Chưa có lát cắt video")
 
-    # Use first min(5, len(parts)) chunks (~15MB max)
-    head_parts = parts[:min(5, len(parts))]
     temp_head = sdir / "temp_head.mov"
-
-    def _create_head():
-        with open(temp_head, "wb") as outfile:
-            for p in head_parts:
-                if p.exists():
-                    with open(p, "rb") as infile:
-                        shutil.copyfileobj(infile, outfile)
-
-    await asyncio.to_thread(_create_head)
+    await asyncio.to_thread(assemble_smart_partial, parts, temp_head)
 
     try:
         r = await asyncio.to_thread(find_offset, temp_head, goc_path)
@@ -571,6 +640,45 @@ async def get_export(filename: str, download: Optional[bool] = False):
 async def download_file(filename: str):
     """Direct forced-attachment download link."""
     return await get_export(filename, download=True)
+
+
+class MediaInfoPayload(BaseModel):
+    url: str
+
+
+@app.post("/api/downloader/info")
+async def api_downloader_info(payload: MediaInfoPayload):
+    """Lấy thông tin và danh sách định dạng hỗ trợ tải cho video/bài hát."""
+    return await get_media_info(payload.url)
+
+
+@app.get("/api/downloader/download")
+async def api_downloader_download(url: str, format_id: str):
+    """Tải và chuyển đổi media, stream trực tiếp về máy khách hàng kèm header attachment."""
+    file_path, filename, media_type = await download_media(url, format_id)
+
+    def cleanup_task():
+        try:
+            if file_path.exists():
+                file_path.unlink()
+            parent = file_path.parent
+            if parent.exists() and not any(parent.iterdir()):
+                shutil.rmtree(parent, ignore_errors=True)
+        except Exception:
+            pass
+
+    quoted_name = quote(filename)
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type=media_type,
+        content_disposition_type="attachment",
+        background=BackgroundTask(cleanup_task),
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{quoted_name}',
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+        }
+    )
 
 
 app.mount("/exports", StaticFiles(directory=str(EXPORTS_DIR)), name="exports")

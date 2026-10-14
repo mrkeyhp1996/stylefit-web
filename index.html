@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=4.6">
+  <link rel="stylesheet" href="style.css?v=5.1">
 </head>
 <body>
 
@@ -46,6 +46,10 @@
         <a href="#ghep-nhac" class="nav-link tool-nav-link">
           <span class="sparkle">🎵</span> Ghép Nhạc
           <span class="nav-badge-hot">HOT</span>
+        </a>
+        <a href="#tai-nhac" class="nav-link tool-nav-link">
+          <span class="sparkle">⚡</span> Tải Nhạc/Video
+          <span class="nav-badge-hot" style="background: linear-gradient(135deg, #00E5FF, #0077FF); color: #fff;">SAVEFROM</span>
         </a>
         <a href="#step-dance" class="nav-link">Step Dance</a>
         <a href="#co-so" class="nav-link">Lịch Tập & Cơ Sở</a>
@@ -81,6 +85,9 @@
         <a href="#hero" class="drawer-link" onclick="closeMobileDrawer()">🏠 Trang Chủ</a>
         <a href="#ghep-nhac" class="drawer-link drawer-tool-link" onclick="closeMobileDrawer()">
           🎵 Công Cụ Ghép Nhạc Tự Động <span class="drawer-badge">HOT</span>
+        </a>
+        <a href="#tai-nhac" class="drawer-link drawer-tool-link" onclick="closeMobileDrawer()">
+          ⚡ Tải Nhạc & Video (YouTube · FB · SoundCloud) <span class="drawer-badge" style="background: #00E5FF; color: #000;">NEW</span>
         </a>
         <a href="#step-dance" class="drawer-link" onclick="closeMobileDrawer()">💃 Bộ Môn Step Dance</a>
         <a href="#co-so" class="drawer-link" onclick="closeMobileDrawer()">📍 2 Cơ Sở & Lịch Tập</a>
@@ -619,6 +626,130 @@
     </div>
   </section>
 
+  <!-- SECTION: CÔNG CỤ TẢI NHẠC & VIDEO (SAVEFROM STYLE) -->
+  <section class="tool-section-wrapper downloader-section-bg" id="tai-nhac">
+    <div class="container">
+      
+      <!-- Section Header -->
+      <div class="section-header-box">
+        <div class="section-mini-badge">⚡ SAVEFROM STYLE · TẢI TRỰC TIẾP VỀ MÁY</div>
+        <h2 class="section-heading">Công Cụ Tải Nhạc & Video Chuẩn Studio</h2>
+        <p class="section-subtext">
+          Tải âm thanh <strong>MP3 320kbps</strong> cực căng cho phòng tập & <strong>Video MP4 HD / 1080p</strong> từ <strong>YouTube, Facebook, SoundCloud</strong>.<br>
+          Tải thẳng về điện thoại hoặc máy tính của bạn trong giây lát (hỗ trợ độ dài tối đa 90 phút).
+        </p>
+      </div>
+
+      <!-- Main Downloader Card -->
+      <div class="tool-card-shell downloader-shell">
+        
+        <!-- Platform badges bar -->
+        <div class="downloader-platforms-bar">
+          <div class="platform-chip active">
+            <span class="p-icon">▶️</span> <strong>YouTube</strong>
+            <span class="p-formats">MP3 · MP4 1080p</span>
+          </div>
+          <div class="platform-chip active">
+            <span class="p-icon">📘</span> <strong>Facebook</strong>
+            <span class="p-formats">Reels · Video HD</span>
+          </div>
+          <div class="platform-chip active">
+            <span class="p-icon">☁️</span> <strong>SoundCloud</strong>
+            <span class="p-formats">Track · 320kbps</span>
+          </div>
+          <div class="platform-limit-tag">
+            ⏱️ Tối đa 90 phút/bài
+          </div>
+        </div>
+
+        <!-- Search Input Bar -->
+        <div class="downloader-input-group">
+          <div class="downloader-input-box">
+            <span class="d-icon-link">🔗</span>
+            <input type="url" id="downloaderUrlInput" class="downloader-input" 
+                   placeholder="Dán link YouTube, Facebook (Reels/Video) hoặc SoundCloud vào đây..." 
+                   autocomplete="off" spellcheck="false">
+            <button type="button" id="btnPasteUrl" class="btn-paste-clipboard" title="Dán từ bộ nhớ tạm">
+              📋 <span>Dán</span>
+            </button>
+            <button type="button" id="btnClearUrl" class="btn-clear-input hidden" title="Xóa nội dung">✕</button>
+          </div>
+          <button type="button" id="btnFetchMedia" class="btn-fetch-submit">
+            <span class="btn-fetch-text">LẤY LINK TẢI</span>
+            <span class="btn-fetch-icon">⚡</span>
+          </button>
+        </div>
+
+        <!-- Error Alert Box -->
+        <div id="downloaderAlert" class="downloader-alert-box hidden">
+          <span class="alert-icon">⚠️</span>
+          <div class="alert-body">
+            <strong id="downloaderAlertTitle">Thông báo:</strong>
+            <span id="downloaderAlertText"></span>
+          </div>
+          <button type="button" class="alert-close-btn" onclick="hideDownloaderAlert()">✕</button>
+        </div>
+
+        <!-- Loading State -->
+        <div id="downloaderLoading" class="downloader-loading-box hidden">
+          <div class="dl-spinner"></div>
+          <p class="dl-loading-title">Đang phân tích dữ liệu & quét định dạng tốt nhất...</p>
+          <span class="dl-loading-sub">Hệ thống đang trích xuất thông tin âm thanh và hình ảnh...</span>
+        </div>
+
+        <!-- Result Card Preview (SaveFrom Style) -->
+        <div id="downloaderResult" class="downloader-result-card hidden">
+          <div class="result-header-grid">
+            <div class="result-thumb-box">
+              <img id="resultThumb" src="" alt="Thumbnail bài hát / video" class="result-thumb-img">
+              <span id="resultDuration" class="result-duration-badge">00:00</span>
+            </div>
+            <div class="result-info-box">
+              <div class="result-platform-badge" id="resultPlatformBadge">▶️ YouTube</div>
+              <h3 id="resultTitle" class="result-title">Tên video bài hát</h3>
+              <p id="resultAuthor" class="result-author">Nghệ sĩ / Kênh</p>
+              
+              <!-- Tab Switcher (Audio vs Video) -->
+              <div class="result-tabs-bar">
+                <button type="button" class="result-tab-btn active" id="tabBtnAudio" onclick="switchDownloaderTab('audio')">
+                  🎵 Âm Thanh (MP3 / M4A)
+                </button>
+                <button type="button" class="result-tab-btn" id="tabBtnVideo" onclick="switchDownloaderTab('video')">
+                  🎬 Video (MP4)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formats Display Area -->
+          <div class="result-formats-area">
+            
+            <!-- Audio List -->
+            <div id="audioFormatsContainer" class="formats-list-table">
+              <!-- Rendered via JS -->
+            </div>
+
+            <!-- Video List -->
+            <div id="videoFormatsContainer" class="formats-list-table hidden">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- In-progress download banner -->
+          <div id="downloaderProgressBanner" class="download-progress-banner hidden">
+            <div class="dl-mini-spinner"></div>
+            <div class="progress-details">
+              <strong>Đang chuẩn bị file & nén âm thanh/video...</strong>
+              <span>Trình duyệt sẽ tự động kích hoạt hộp thoại lưu file về máy bạn sau vài giây. Vui lòng giữ trang này mở.</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </section>
+
   <!-- SECTION: STEP DANCE & LỢI ÍCH -->
   <section class="features-section" id="step-dance">
     <div class="container">
@@ -1100,7 +1231,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="sync-engine.js?v=4.6"></script>
-  <script src="app.js?v=4.6"></script>
+  <script src="sync-engine.js?v=5.1"></script>
+  <script src="app.js?v=5.1"></script>
 </body>
 </html>
