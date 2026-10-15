@@ -1886,7 +1886,7 @@ function renderMediaResult(data) {
   resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function triggerMediaDownload(encodedUrl, formatId, btnEl) {
+async function triggerMediaDownload(encodedUrl, formatId, btnEl) {
   const url = decodeURIComponent(encodedUrl);
   const progressBanner = document.getElementById('downloaderProgressBanner');
 
@@ -1899,28 +1899,47 @@ function triggerMediaDownload(encodedUrl, formatId, btnEl) {
     progressBanner.classList.remove('hidden');
   }
 
-  // Trigger download via hidden iframe or anchor to avoid page navigation
   const downloadUrl = `/api/downloader/download?url=${encodeURIComponent(url)}&format_id=${encodeURIComponent(formatId)}`;
-  
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.setAttribute('download', '');
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
 
-  // Reset button state after a few seconds
-  setTimeout(() => {
+  try {
+    const res = await fetch(downloadUrl);
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.detail || `Máy chủ báo lỗi: ${res.status}`);
+    }
+
+    const disposition = res.headers.get('content-disposition') || '';
+    let filename = formatId.startsWith('video') ? 'StyleFit_Video.mp4' : 'StyleFit_Audio.mp3';
+    const matchUtf8 = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (matchUtf8) {
+      filename = decodeURIComponent(matchUtf8[1]);
+    } else {
+      const matchAscii = disposition.match(/filename="([^"]+)"/i);
+      if (matchAscii) filename = matchAscii[1];
+    }
+
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 15000);
+
+  } catch (err) {
+    console.error('Lỗi tải file:', err);
+    showDownloaderAlert(err.message || 'Không thể tải file về máy. Vui lòng kiểm tra lại liên kết hoặc thử lại sau vài giây!', 'Lỗi tải file:');
+  } finally {
     if (btnEl) {
       btnEl.classList.remove('processing');
       btnEl.innerHTML = formatId.startsWith('video') ? '<span>Tải Video</span> <span>🎬</span>' : '<span>Tải Ngay</span> <span>📥</span>';
     }
     if (progressBanner) {
-      setTimeout(() => {
-        progressBanner.classList.add('hidden');
-      }, 5000);
+      progressBanner.classList.add('hidden');
     }
-  }, 4000);
+  }
 }
 
 // Initialize on DOM ready

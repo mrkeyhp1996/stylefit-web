@@ -260,7 +260,7 @@ def download_media_sync(url: str, format_id: str) -> tuple[Path, str, str]:
     elif format_id == "video_1080":
         ydl_opts = {
             **common_opts,
-            'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best',
+            'format': 'bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/hd/best',
             'merge_output_format': 'mp4',
         }
         media_type = "video/mp4"
@@ -269,7 +269,7 @@ def download_media_sync(url: str, format_id: str) -> tuple[Path, str, str]:
     elif format_id == "video_720":
         ydl_opts = {
             **common_opts,
-            'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+            'format': 'bestvideo[height<=720]+bestaudio/bestvideo[width<=720]+bestaudio/hd/best',
             'merge_output_format': 'mp4',
         }
         media_type = "video/mp4"
@@ -278,7 +278,7 @@ def download_media_sync(url: str, format_id: str) -> tuple[Path, str, str]:
     elif format_id == "video_360":
         ydl_opts = {
             **common_opts,
-            'format': 'bestvideo[height<=360]+bestaudio/best[height<=360]/best',
+            'format': 'bestvideo[height<=360]+bestaudio/bestvideo[width<=360]+bestaudio/sd/best[height<=360]/best[width<=360]/best',
             'merge_output_format': 'mp4',
         }
         media_type = "video/mp4"
