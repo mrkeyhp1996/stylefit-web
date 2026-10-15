@@ -667,15 +667,20 @@ async def api_downloader_download(url: str, format_id: str):
         except Exception:
             pass
 
+    import unicodedata
+    ascii_name = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('ascii').strip()
+    if not ascii_name:
+        ascii_name = f"StyleFit_Download.{filename.split('.')[-1]}"
     quoted_name = quote(filename)
+
     return FileResponse(
         path=str(file_path),
-        filename=filename,
+        filename=ascii_name,
         media_type=media_type,
         content_disposition_type="attachment",
         background=BackgroundTask(cleanup_task),
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{quoted_name}',
+            "Content-Disposition": f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quoted_name}',
             "Cache-Control": "no-store, no-cache, must-revalidate",
         }
     )

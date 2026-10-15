@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>StyleFit Drop | Truyền Tệp P2P Không Dây Siêu Tốc</title>
+  <meta name="description" content="Công cụ truyền video, hình ảnh và tệp tin P2P tốc độ cao giữa các thiết bị. Không nén chất lượng, bảo mật riêng tư, không cần cài đặt ứng dụng.">
+  <meta name="theme-color" content="#0B0B0D">
+
+  <!-- Favicon / PWA -->
+  <link rel="icon" type="image/svg+xml" href="stylefit-badge.svg">
+  <link rel="apple-touch-icon" href="stylefit-badge.png">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- External Libraries (PeerJS WebRTC & QRCode) -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #FE7409;
+      --primary-hover: #FF881E;
+      --primary-glow: rgba(254, 116, 9, 0.35);
+      --primary-glow-subtle: rgba(254, 116, 9, 0.12);
+
+      --bg-dark: #0B0B0D;
+      --bg-surface: #131317;
+      --bg-card: #18181D;
+      --bg-card-hover: #202027;
+      --bg-card-inner: #0F0F12;
+
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-active: rgba(254, 116, 9, 0.45);
+      --border-card: rgba(255, 255, 255, 0.06);
+
+      --text-white: #FFFFFF;
+      --text-primary: #F0F0F3;
+      --text-muted: #9595A2;
+      --text-dim: #626270;
+
+      --accent-cyan: #00E5FF;
+      --accent-green: #10B981;
+      --accent-red: #EF4444;
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45);
+      --shadow-glow: 0 0 25px var(--primary-glow);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: var(--font-main);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient background lights */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(254, 116, 9, 0.15) 0%, rgba(11, 11, 13, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Header */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(11, 11, 13, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 14px 20px;
+    }
+    .header-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-white);
+    }
+    .brand img {
+      height: 34px;
+      width: auto;
+    }
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(254, 116, 9, 0.15);
+      border: 1px solid rgba(254, 116, 9, 0.3);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-family: var(--font-display);
+    }
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-nav {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+    }
+    .btn-nav:hover {
+      color: var(--text-white);
+      background: var(--bg-card);
+      border-color: var(--border-subtle);
+    }
+
+    /* Main Container */
+    .main-wrap {
+      flex: 1;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Hero / Title */
+    .hero-section {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--text-white);
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .hero-title span {
+      color: var(--primary);
+      text-shadow: 0 0 20px var(--primary-glow);
+    }
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 14px;
+      max-width: 550px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      margin-bottom: 20px;
+    }
+    .device-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      box-shadow: 0 0 8px transparent;
+      transition: all 0.3s ease;
+    }
+    .status-dot.connected {
+      background: var(--accent-green);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+      animation: pulse 2s infinite;
+    }
+    .status-dot.waiting {
+      background: var(--primary);
+      box-shadow: 0 0 10px var(--primary-glow);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.6; transform: scale(0.95); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 0.6; transform: scale(0.95); }
+    }
+    .device-name-edit {
+      background: transparent;
+      border: 1px dashed var(--border-subtle);
+      color: var(--text-white);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .device-name-edit:focus {
+      border-color: var(--primary);
+      background: var(--bg-card-inner);
+    }
+
+    /* Grid Layout */
+    .drop-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    @media (min-width: 768px) {
+      .drop-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.3s ease;
+    }
+    .card.highlight {
+      border-color: var(--border-active);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 20px var(--primary-glow-subtle);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--bg-card-inner);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* QR Code Display */
+    .qr-container {
+      background: #FFFFFF;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 220px;
+      height: 220px;
+      margin: 10px auto 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .qr-container img, .qr-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+    .room-link-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card-inner);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      margin-top: 10px;
+    }
+    .room-link-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      outline: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      user-select: all;
+    }
+    .btn-copy {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-white);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-copy:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #FFFFFF;
+    }
+
+    /* Upload Area */
+    .dropzone {
+      border: 2px dashed var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg-card-inner);
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      position: relative;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--primary);
+      background: rgba(254, 116, 9, 0.05);
+      transform: translateY(-2px);
+    }
+    .dropzone-icon {
+      font-size: 44px;
+      color: var(--primary);
+      line-height: 1;
+      filter: drop-shadow(0 0 12px var(--primary-glow));
+    }
+    .dropzone-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-white);
+    }
+    .dropzone-sub {
+      color: var(--text-muted);
+      font-size: 12px;
+      max-width: 280px;
+      line-height: 1.4;
+    }
+    .btn-select-file {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--primary), #FF881E);
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 24px;
+      border-radius: var(--radius-md);
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 15px var(--primary-glow);
+      transition: all 0.2s;
+      margin-top: 6px;
+    }
+    .btn-select-file:hover {
+      filter: brightness(1.1);
+      transform: scale(1.02);
+    }
+
+    /* File List & Progress */
+    .file-queue {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .file-item {
+      background: var(--bg-card-inner);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .file-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .file-details {
+      flex: 1;
+      min-width: 0;
+    }
+    .file-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-white);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .btn-send-now {
+      background: var(--accent-green);
+      color: #000;
+      font-weight: 800;
+      font-size: 14px;
+      border: none;
+      padding: 14px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 14px;
+      transition: all 0.2s;
+    }
+    .btn-send-now:hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+    }
+
+    /* Transfer Progress Bar */
+    .progress-box {
+      margin-top: 16px;
+      background: var(--bg-card-inner);
+      border: 1px solid var(--border-active);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: none;
+    }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .progress-title {
+      color: var(--text-white);
+      font-weight: 600;
+    }
+    .progress-percent {
+      color: var(--primary);
+      font-weight: 700;
+      font-family: var(--font-display);
+    }
+    .progress-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary), var(--accent-cyan));
+      border-radius: 999px;
+      transition: width 0.15s ease;
+    }
+    .progress-speed {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 8px;
+    }
+
+    /* Received Files List */
+    .received-box {
+      margin-top: 20px;
+    }
+    .received-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .received-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .received-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn-action-download {
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .btn-action-download:hover {
+      background: var(--primary-hover);
+    }
+    .btn-action-sync {
+      background: rgba(0, 229, 255, 0.15);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      color: var(--accent-cyan);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .btn-action-sync:hover {
+      background: var(--accent-cyan);
+      color: #000;
+    }
+
+    /* Auto download switch */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .toggle-wrap input {
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* Tips & Guide */
+    .tips-box {
+      margin-top: 28px;
+      background: var(--bg-card-inner);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .tips-box strong {
+      color: var(--text-white);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .hero-title {
+        font-size: 24px;
+      }
+      .qr-container {
+        width: 180px;
+        height: 180px;
+        padding: 12px;
+      }
+      .card {
+        padding: 16px;
+      }
+      .received-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .received-actions {
+        width: 100%;
+        margin-top: 10px;
+      }
+      .received-actions .btn-action-download,
+      .received-actions .btn-action-sync {
+        flex: 1;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-container">
+      <a href="index.html" class="brand">
+        <img src="stylefit-logo.svg" alt="StyleFit Logo">
+        <span class="brand-badge">DROP P2P</span>
+      </a>
+
+      <nav class="header-nav">
+        <a href="index.html" class="btn-nav">🏠 Trang Chủ</a>
+        <a href="index.html#ghep-nhac" class="btn-nav" style="color: var(--primary);">🎵 Ghép Nhạc</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrap">
+
+    <!-- HERO -->
+    <section class="hero-section">
+      <h1 class="hero-title">StyleFit <span>Drop</span></h1>
+      <p class="hero-desc">
+        Truyền video nhảy, hình ảnh & tệp tin trực tiếp giữa 2 thiết bị qua giao thức P2P. Không giới hạn dung lượng, không nén mờ, không cần cài app.
+      </p>
+    </section>
+
+    <!-- STATUS BAR -->
+    <div class="status-bar">
+      <div class="device-info">
+        <span id="statusDot" class="status-dot waiting"></span>
+        <span id="statusText">Đang khởi tạo kết nối P2P...</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <label class="toggle-wrap" title="Tự động tải tệp tin về máy ngay khi nhận xong">
+          <input type="checkbox" id="autoDownloadToggle" checked>
+          <span>Tự động tải về khi nhận</span>
+        </label>
+        <input type="text" id="myDeviceName" class="device-name-edit" value="Thiết bị của tôi" title="Bấm để đổi tên hiển thị">
+      </div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN OR TABS -->
+    <div class="drop-grid">
+
+      <!-- LEFT: RECEIVER / PAIRING BOX -->
+      <div class="card highlight" id="receiveCard">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>📲</span> Mã Kết Nối Nhận Tệp
+          </h2>
+          <span class="card-badge" id="peerIdBadge">Đang tạo mã...</span>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); text-align: center;">
+          Mở <strong>Camera trên điện thoại khác</strong> quét mã QR dưới đây để kết nối và gửi tệp tức thì:
+        </p>
+
+        <!-- QR Canvas -->
+        <div class="qr-container" id="qrContainer">
+          <div id="qrCode"></div>
+        </div>
+
+        <!-- Room link input -->
+        <div class="room-link-box">
+          <input type="text" id="roomLinkInput" class="room-link-input" readonly value="Đang tạo link kết nối...">
+          <button class="btn-copy" id="btnCopyLink">Sao chép</button>
+        </div>
+
+        <div style="margin-top: 12px; text-align: center; font-size: 11px; color: var(--text-dim);">
+          💡 Hoặc gõ mã này trên thiết bị kia: <strong id="shortCode" style="color: var(--primary); font-size: 13px;">...</strong>
+        </div>
+      </div>
+
+      <!-- RIGHT: SENDER BOX -->
+      <div class="card" id="sendCard">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🚀</span> Gửi Tệp Trực Tiếp
+          </h2>
+          <span class="card-badge" id="targetDeviceBadge">Chưa kết nối máy nào</span>
+        </div>
+
+        <!-- Dropzone -->
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="fileInput" multiple style="display: none;">
+          <div class="dropzone-icon">📁</div>
+          <div class="dropzone-title">Chọn hoặc Kéo thả video/tệp vào đây</div>
+          <div class="dropzone-sub">Hỗ trợ mọi định dạng: Video MP4, MOV, ảnh gốc, âm thanh. Không giới hạn dung lượng.</div>
+          <button class="btn-select-file" id="btnBrowse">
+            <span>📷</span> Chọn Tệp từ Thư viện
+          </button>
+        </div>
+
+        <!-- Queue of chosen files -->
+        <div class="file-queue" id="fileQueue"></div>
+
+        <!-- Action Send Button -->
+        <button class="btn-send-now" id="btnSendNow" style="display: none;">
+          <span>⚡ BẮT ĐẦU GỬI TỆP SANG THIẾT BỊ NHẬN</span>
+        </button>
+
+        <!-- Progress Box -->
+        <div class="progress-box" id="progressBox">
+          <div class="progress-header">
+            <span class="progress-title" id="progressFileTitle">Đang truyền tệp tin...</span>
+            <span class="progress-percent" id="progressPercent">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+          <div class="progress-speed">
+            <span id="transferSpeed">0 MB/s</span>
+            <span id="transferRemaining">Đang tính thời gian...</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RECEIVED FILES LIST -->
+    <div class="received-box" id="receivedSection" style="display: none;">
+      <h3 style="font-family: var(--font-display); font-size: 18px; margin-bottom: 12px; color: var(--text-white); display: flex; align-items: center; gap: 8px;">
+        <span>📥</span> Danh Sách Tệp Đã Nhận
+      </h3>
+      <div id="receivedList"></div>
+    </div>
+
+    <!-- TIPS / NOTES -->
+    <div class="tips-box">
+      <strong>💡 Mẹo truyền siêu tốc:</strong>
+      <ul style="margin-left: 20px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+        <li>Hai máy chỉ cần cùng bắt một mạng Wi-Fi (hoặc 1 máy bật Điểm phát sóng di động / Hotspot cho máy kia bắt).</li>
+        <li>Tệp tin được truyền <strong>trực tiếp P2P</strong> giữa 2 trình duyệt, không qua trung gian lưu trữ máy chủ nào, đảm bảo 100% riêng tư và giữ nguyên chất lượng gốc.</li>
+        <li>Sau khi nhận video xong, bạn có thể bấm <strong>"Chuyển sang Ghép Nhạc"</strong> để căn khớp nhạc phòng tập tự động trong tích tắc!</li>
+      </ul>
+    </div>
+
+  </main>
+
+  <script>
+    /* ==========================================================================
+       STYLEFIT DROP - WEBRTC P2P DATA TRANSFER ENGINE
+       Zero app install, chunked streaming for large 4K dance videos
+       ========================================================================== */
+
+    const CHUNK_SIZE = 64 * 1024; // 64 KB chunk size for WebRTC DataChannel
+    let peer = null;
+    let myPeerId = null;
+    let activeConnection = null;
+    let selectedFiles = [];
+    let isTransferring = false;
+
+    // Incoming file assembly
+    let incomingMeta = null;
+    let incomingChunks = [];
+    let receivedBytes = 0;
+    let transferStartTime = 0;
+
+    // Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const myDeviceNameInput = document.getElementById('myDeviceName');
+    const peerIdBadge = document.getElementById('peerIdBadge');
+    const qrContainer = document.getElementById('qrContainer');
+    const qrCodeDiv = document.getElementById('qrCode');
+    const roomLinkInput = document.getElementById('roomLinkInput');
+    const shortCodeEl = document.getElementById('shortCode');
+    const btnCopyLink = document.getElementById('btnCopyLink');
+    const targetDeviceBadge = document.getElementById('targetDeviceBadge');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const btnBrowse = document.getElementById('btnBrowse');
+    const fileQueue = document.getElementById('fileQueue');
+    const btnSendNow = document.getElementById('btnSendNow');
+    const progressBox = document.getElementById('progressBox');
+    const progressFileTitle = document.getElementById('progressFileTitle');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressBarFill = document.getElementById('progressBarFill');
+    const transferSpeed = document.getElementById('transferSpeed');
+    const transferRemaining = document.getElementById('transferRemaining');
+    const receivedSection = document.getElementById('receivedSection');
+    const receivedList = document.getElementById('receivedList');
+    const autoDownloadToggle = document.getElementById('autoDownloadToggle');
+
+    // Auto detect device name
+    function getDefaultDeviceName() {
+      const ua = navigator.userAgent;
+      if (/iPhone/i.test(ua)) return 'iPhone';
+      if (/iPad/i.test(ua)) return 'iPad';
+      if (/SM-F/i.test(ua)) return 'Samsung Z Fold';
+      if (/Android/i.test(ua)) return 'Thiết bị Android';
+      if (/Macintosh/i.test(ua)) return 'Máy tính Mac';
+      if (/Windows/i.test(ua)) return 'Máy tính Windows';
+      return 'Thiết bị StyleFit';
+    }
+    myDeviceNameInput.value = localStorage.getItem('sf_drop_devicename') || getDefaultDeviceName();
+    myDeviceNameInput.addEventListener('change', () => {
+      localStorage.setItem('sf_drop_devicename', myDeviceNameInput.value.trim());
+    });
+
+    // Parse URL room params (?room=sf-xxxx or #sf-xxxx)
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetRoomId = urlParams.get('room') || window.location.hash.replace('#', '');
+
+    // Generate random short ID for receiver
+    function generateId() {
+      const chars = '23456789abcdefghjkmnpqrstuvwxyz';
+      let id = 'sf-';
+      for (let i = 0; i < 5; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return id;
+    }
+
+    // Initialize PeerJS
+    function initPeer() {
+      const desiredId = targetRoomId ? generateId() : generateId();
+
+      peer = new Peer(desiredId, {
+        debug: 1,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' }
+          ]
+        }
+      });
+
+      peer.on('open', (id) => {
+        myPeerId = id;
+        peerIdBadge.textContent = 'Mã: ' + id;
+        shortCodeEl.textContent = id;
+        statusText.textContent = 'Sẵn sàng kết nối P2P (Mã: ' + id + ')';
+
+        // Build connection link
+        const baseHref = window.location.origin + window.location.pathname;
+        const connectUrl = `${baseHref}?room=${id}`;
+        roomLinkInput.value = connectUrl;
+
+        // Render QR Code
+        qrCodeDiv.innerHTML = '';
+        new QRCode(qrCodeDiv, {
+          text: connectUrl,
+          width: 190,
+          height: 190,
+          colorDark: '#0B0B0D',
+          colorLight: '#FFFFFF',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+
+        // If this page was opened with ?room=xxxx, auto-connect to target room
+        if (targetRoomId && targetRoomId !== id) {
+          connectToPeer(targetRoomId);
+        }
+      });
+
+      // Handle incoming connection (this device is receiving)
+      peer.on('connection', (conn) => {
+        setupConnection(conn);
+      });
+
+      peer.on('error', (err) => {
+        console.warn('PeerJS error:', err);
+        statusText.textContent = 'Trạng thái: ' + (err.type || 'Lỗi kết nối');
+      });
+    }
+
+    // Connect to target peer
+    function connectToPeer(roomId) {
+      statusText.textContent = 'Đang kết nối tới ' + roomId + '...';
+      statusDot.className = 'status-dot waiting';
+      targetDeviceBadge.textContent = 'Đang gọi ' + roomId + '...';
+
+      const conn = peer.connect(roomId, {
+        reliable: true
+      });
+      setupConnection(conn);
+    }
+
+    // Setup active DataChannel connection
+    function setupConnection(conn) {
+      activeConnection = conn;
+
+      conn.on('open', () => {
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Đã kết nối thành công với thiết bị đối tác!';
+        targetDeviceBadge.textContent = 'Đã kết nối P2P';
+        targetDeviceBadge.style.color = 'var(--accent-green)';
+        targetDeviceBadge.style.borderColor = 'var(--accent-green)';
+
+        // Exchange device names
+        conn.send({
+          type: 'handshake',
+          name: myDeviceNameInput.value
+        });
+      });
+
+      conn.on('data', (data) => {
+        handleIncomingData(data);
+      });
+
+      conn.on('close', () => {
+        statusDot.className = 'status-dot waiting';
+        statusText.textContent = 'Kết nối đã đóng. Đang chờ kết nối mới...';
+        targetDeviceBadge.textContent = 'Đã ngắt kết nối';
+        targetDeviceBadge.style.color = 'var(--text-muted)';
+        activeConnection = null;
+      });
+
+      conn.on('error', (err) => {
+        console.error('Connection error:', err);
+      });
+    }
+
+    // Handle Incoming WebRTC Data
+    function handleIncomingData(data) {
+      if (!data) return;
+
+      // 1. Handshake
+      if (data.type === 'handshake') {
+        const partnerName = data.name || 'Thiết bị đối tác';
+        statusText.textContent = `Đã ghép nối với: ${partnerName}`;
+        targetDeviceBadge.textContent = partnerName;
+        return;
+      }
+
+      // 2. File Start
+      if (data.type === 'file-start') {
+        incomingMeta = data;
+        incomingChunks = [];
+        receivedBytes = 0;
+        transferStartTime = Date.now();
+
+        progressBox.style.display = 'block';
+        progressFileTitle.textContent = 'Đang nhận: ' + data.name;
+        progressBarFill.style.width = '0%';
+        progressPercent.textContent = '0%';
+        transferSpeed.textContent = 'Bắt đầu nhận...';
+        return;
+      }
+
+      // 3. File Chunk
+      if (data.type === 'file-chunk') {
+        incomingChunks.push(data.chunk);
+        receivedBytes += data.chunk.byteLength || data.chunk.size || 0;
+
+        if (incomingMeta && incomingMeta.size > 0) {
+          const percent = Math.min(100, Math.round((receivedBytes / incomingMeta.size) * 100));
+          progressBarFill.style.width = percent + '%';
+          progressPercent.textContent = percent + '%';
+
+          // Speed & Remaining time
+          const elapsed = (Date.now() - transferStartTime) / 1000;
+          if (elapsed > 0.5) {
+            const speedMBps = (receivedBytes / (1024 * 1024)) / elapsed;
+            transferSpeed.textContent = speedMBps.toFixed(1) + ' MB/s';
+            const remainingBytes = incomingMeta.size - receivedBytes;
+            const remainingSecs = Math.round(remainingBytes / (speedMBps * 1024 * 1024));
+            transferRemaining.textContent = remainingSecs > 0 ? `Còn khoảng ${remainingSecs}s` : 'Sắp xong...';
+          }
+        }
+        return;
+      }
+
+      // 4. File End
+      if (data.type === 'file-end') {
+        const blob = new Blob(incomingChunks, { type: incomingMeta.mime || 'application/octet-stream' });
+        const fileUrl = URL.createObjectURL(blob);
+
+        progressPercent.textContent = '100% Hoàn tất!';
+        progressBarFill.style.width = '100%';
+        transferSpeed.textContent = formatBytes(incomingMeta.size);
+        transferRemaining.textContent = 'Đã nhận thành công!';
+
+        // Sound/Haptic feedback
+        playSuccessTone();
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+        // Auto download if enabled
+        if (autoDownloadToggle.checked) {
+          downloadBlob(fileUrl, incomingMeta.name);
+        }
+
+        // Add to Received Files UI
+        addReceivedFileToUI(incomingMeta.name, incomingMeta.size, incomingMeta.mime, fileUrl);
+
+        // Reset buffer
+        incomingMeta = null;
+        incomingChunks = [];
+        return;
+      }
+    }
+
+    // Play pleasant synthetic success chime
+    function playSuccessTone() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } catch (e) {}
+    }
+
+    // Add received file item into list
+    function addReceivedFileToUI(name, size, mime, url) {
+      receivedSection.style.display = 'block';
+
+      const item = document.createElement('div');
+      item.className = 'received-item';
+
+      const isVideo = mime.startsWith('video/') || /\.(mp4|mov|m4v|avi|webm)$/i.test(name);
+      const isAudio = mime.startsWith('audio/') || /\.(mp3|wav|m4a|aac)$/i.test(name);
+
+      let icon = '📄';
+      if (isVideo) icon = '🎬';
+      else if (isAudio) icon = '🎵';
+      else if (mime.startsWith('image/')) icon = '🖼️';
+
+      item.innerHTML = `
+        <div class="received-left">
+          <span style="font-size: 28px;">${icon}</span>
+          <div>
+            <div style="font-weight: 700; color: #fff; font-size: 13px; word-break: break-all;">${name}</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+              ${formatBytes(size)} • Nhận lúc ${new Date().toLocaleTimeString()}
+            </div>
+          </div>
+        </div>
+        <div class="received-actions">
+          <a href="${url}" download="${name}" class="btn-action-download">
+            ⬇️ Tải về máy
+          </a>
+          ${(isVideo || isAudio) ? `
+            <a href="index.html#ghep-nhac" class="btn-action-sync" title="Đưa video này vào công cụ Ghép Nhạc tự động của StyleFit">
+              🎵 Chuyển sang Ghép Nhạc
+            </a>
+          ` : ''}
+        </div>
+      `;
+
+      receivedList.insertBefore(item, receivedList.firstChild);
+    }
+
+    // Download blob helper
+    function downloadBlob(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // File Selection & Drag Drop
+    btnBrowse.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      handleFilesSelected(e.target.files);
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFilesSelected(e.dataTransfer.files);
+      }
+    });
+
+    function handleFilesSelected(files) {
+      selectedFiles = Array.from(files);
+      if (selectedFiles.length === 0) return;
+
+      fileQueue.innerHTML = '';
+      selectedFiles.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.innerHTML = `
+          <div class="file-icon">🎥</div>
+          <div class="file-details">
+            <div class="file-name">${file.name}</div>
+            <div class="file-meta">${formatBytes(file.size)} • ${file.type || 'Tệp tin'}</div>
+          </div>
+        `;
+        fileQueue.appendChild(item);
+      });
+
+      btnSendNow.style.display = 'flex';
+      btnSendNow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Send Files via WebRTC DataChannel (with Backpressure streaming)
+    btnSendNow.addEventListener('click', async () => {
+      if (!activeConnection || !activeConnection.open) {
+        alert('Chưa có thiết bị nào kết nối! Hãy dùng điện thoại kia quét mã QR hoặc nhập link để kết nối trước khi gửi.');
+        return;
+      }
+      if (selectedFiles.length === 0 || isTransferring) return;
+
+      isTransferring = true;
+      btnSendNow.disabled = true;
+      btnSendNow.style.opacity = '0.5';
+
+      progressBox.style.display = 'block';
+
+      for (let f = 0; f < selectedFiles.length; f++) {
+        const file = selectedFiles[f];
+        await sendSingleFile(file);
+      }
+
+      isTransferring = false;
+      btnSendNow.disabled = false;
+      btnSendNow.style.opacity = '1';
+      btnSendNow.innerHTML = '<span>✅ ĐÃ GỬI XONG! BẤM ĐỂ GỬI TỆP KHÁC</span>';
+      selectedFiles = [];
+    });
+
+    // Send single file with chunking and backpressure control
+    function sendSingleFile(file) {
+      return new Promise((resolve, reject) => {
+        progressFileTitle.textContent = `Đang gửi: ${file.name} (${formatBytes(file.size)})`;
+        progressBarFill.style.width = '0%';
+        progressPercent.textContent = '0%';
+
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+        let currentChunk = 0;
+        let sentBytes = 0;
+        const startTime = Date.now();
+
+        // 1. Send File Header
+        activeConnection.send({
+          type: 'file-start',
+          name: file.name,
+          size: file.size,
+          mime: file.type,
+          totalChunks: totalChunks
+        });
+
+        // Reader helper
+        function readAndSendChunk() {
+          if (currentChunk >= totalChunks) {
+            // Finished sending all chunks
+            activeConnection.send({ type: 'file-end' });
+            progressBarFill.style.width = '100%';
+            progressPercent.textContent = '100% Hoàn thành';
+            transferRemaining.textContent = 'Đã gửi xong!';
+            playSuccessTone();
+            resolve();
+            return;
+          }
+
+          // Backpressure check: If DataChannel buffer is full (> 1MB), wait before sending
+          const dc = activeConnection.dataChannel;
+          if (dc && dc.bufferedAmount > 1024 * 1024) {
+            setTimeout(readAndSendChunk, 50);
+            return;
+          }
+
+          const start = currentChunk * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const blobSlice = file.slice(start, end);
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const buffer = e.target.result;
+            activeConnection.send({
+              type: 'file-chunk',
+              chunk: buffer
+            });
+
+            currentChunk++;
+            sentBytes += buffer.byteLength;
+
+            // Update Progress UI
+            const percent = Math.min(100, Math.round((sentBytes / file.size) * 100));
+            progressBarFill.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+
+            const elapsed = (Date.now() - startTime) / 1000;
+            if (elapsed > 0.5) {
+              const speedMBps = (sentBytes / (1024 * 1024)) / elapsed;
+              transferSpeed.textContent = speedMBps.toFixed(1) + ' MB/s';
+              const remainingBytes = file.size - sentBytes;
+              const remainingSecs = Math.round(remainingBytes / (speedMBps * 1024 * 1024));
+              transferRemaining.textContent = remainingSecs > 0 ? `Còn khoảng ${remainingSecs}s` : 'Sắp xong...';
+            }
+
+            // Loop immediately
+            readAndSendChunk();
+          };
+          reader.onerror = (err) => reject(err);
+          reader.readAsArrayBuffer(blobSlice);
+        }
+
+        readAndSendChunk();
+      });
+    }
+
+    // Copy link button
+    btnCopyLink.addEventListener('click', () => {
+      roomLinkInput.select();
+      navigator.clipboard.writeText(roomLinkInput.value).then(() => {
+        btnCopyLink.textContent = 'Đã chép!';
+        setTimeout(() => btnCopyLink.textContent = 'Sao chép', 2000);
+      });
+    });
+
+    // Format bytes to KB/MB/GB
+    function formatBytes(bytes, decimals = 1) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // Start PeerJS on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      initPeer();
+    });
+  </script>
+</body>
+</html>

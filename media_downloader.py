@@ -34,9 +34,13 @@ SUPPORTED_DOMAINS = [
 
 def sanitize_filename(name: str) -> str:
     """Loại bỏ các ký tự không hợp lệ cho tên file trên Windows và HTTP header."""
-    clean = re.sub(r'[\\/*?:"<>|]', "", name)
+    # Thay thế các ký tự đặc biệt hay gặp trên Facebook Reels / bài đăng
+    clean = name.replace("｜", "-").replace("|", "-")
+    clean = re.sub(r'[\\/*?:"<>|\n\r\t]', " ", clean)
+    # Loại bỏ emoji và ký tự Unicode mở rộng gây lỗi filesystem Windows
+    clean = re.sub(r'[\U00010000-\U0010ffff\uD800-\uDBFF\uDC00-\uDFFF\u2600-\u26FF\u2700-\u27BF]', "", clean)
     clean = re.sub(r'\s+', " ", clean).strip()
-    return clean[:100] if clean else "StyleFit_Download"
+    return clean[:60] if clean else "StyleFit_Download"
 
 def format_duration(seconds: Optional[int]) -> str:
     """Định dạng giây thành mm:ss hoặc hh:mm:ss"""
@@ -204,82 +208,78 @@ def download_media_sync(url: str, format_id: str) -> tuple[Path, str, str]:
     output_dir = TEMP_DOWNLOADS_DIR / task_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    out_template = str(output_dir / "%(title)s.%(ext)s")
+    common_opts = {
+        'paths': {'home': str(output_dir)},
+        'outtmpl': {'default': 'media.%(ext)s'},
+        'windowsfilenames': True,
+        'restrictfilenames': True,
+        'trim_file_name': 50,
+        'quiet': True,
+        'no_warnings': True,
+    }
 
     # Cấu hình yt-dlp theo từng định dạng
     if format_id == "audio_320":
         ydl_opts = {
+            **common_opts,
             'format': 'bestaudio/best',
-            'outtmpl': out_template,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '320',
             }],
-            'quiet': True,
-            'no_warnings': True,
         }
         media_type = "audio/mpeg"
         final_ext = "mp3"
 
     elif format_id == "audio_128":
         ydl_opts = {
+            **common_opts,
             'format': 'bestaudio/best',
-            'outtmpl': out_template,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '128',
             }],
-            'quiet': True,
-            'no_warnings': True,
         }
         media_type = "audio/mpeg"
         final_ext = "mp3"
 
     elif format_id == "audio_m4a":
         ydl_opts = {
+            **common_opts,
             'format': 'bestaudio/best',
-            'outtmpl': out_template,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'm4a',
             }],
-            'quiet': True,
-            'no_warnings': True,
         }
         media_type = "audio/mp4"
         final_ext = "m4a"
 
     elif format_id == "video_1080":
         ydl_opts = {
+            **common_opts,
             'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best',
-            'outtmpl': out_template,
             'merge_output_format': 'mp4',
-            'quiet': True,
-            'no_warnings': True,
         }
         media_type = "video/mp4"
         final_ext = "mp4"
 
     elif format_id == "video_720":
         ydl_opts = {
+            **common_opts,
             'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
-            'outtmpl': out_template,
             'merge_output_format': 'mp4',
-            'quiet': True,
-            'no_warnings': True,
         }
         media_type = "video/mp4"
         final_ext = "mp4"
 
     elif format_id == "video_360":
         ydl_opts = {
+            **common_opts,
             'format': 'bestvideo[height<=360]+bestaudio/best[height<=360]/best',
-            'outtmpl': out_template,
             'merge_output_format': 'mp4',
-            'quiet': True,
-            'no_warnings': True,
         }
         media_type = "video/mp4"
         final_ext = "mp4"
