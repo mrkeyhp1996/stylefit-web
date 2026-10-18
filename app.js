@@ -1629,7 +1629,7 @@ window.downloadSyncedVideo = downloadSyncedVideo;
 window.shareVideo = shareVideo;
 window.resetAll = resetAll;
 
-function switchSuiteTab(tabKey, btn) {
+function switchSuiteTab(tabKey, btn, autoScroll = false) {
   const tabSync = document.getElementById('tabBtnSync');
   const tabDl = document.getElementById('tabBtnDl');
   const tabDrop = document.getElementById('tabBtnDrop');
@@ -1665,19 +1665,29 @@ function switchSuiteTab(tabKey, btn) {
       paneDrop.classList.add('active');
     }
   }
+
+  if (autoScroll || (btn && !btn.classList.contains('suite-tab-btn'))) {
+    const suite = document.getElementById('studio-suite');
+    if (suite) {
+      suite.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
 }
 window.switchSuiteTab = switchSuiteTab;
 
-document.addEventListener('DOMContentLoaded', () => {
+function handleSuiteHashRouting() {
   const hash = window.location.hash;
   if (hash === '#tai-nhac') {
-    switchSuiteTab('dl');
+    switchSuiteTab('dl', null, true);
   } else if (hash === '#airdrop' || hash === '#drop') {
-    switchSuiteTab('drop');
+    switchSuiteTab('drop', null, true);
   } else if (hash === '#ghep-nhac') {
-    switchSuiteTab('sync');
+    switchSuiteTab('sync', null, true);
   }
-});
+}
+
+document.addEventListener('DOMContentLoaded', handleSuiteHashRouting);
+window.addEventListener('hashchange', handleSuiteHashRouting);
 
 /* ==========================================================================
    STYLEFIT SAVEFROM MEDIA DOWNLOADER LOGIC
