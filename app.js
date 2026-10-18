@@ -1629,6 +1629,56 @@ window.downloadSyncedVideo = downloadSyncedVideo;
 window.shareVideo = shareVideo;
 window.resetAll = resetAll;
 
+function switchSuiteTab(tabKey, btn) {
+  const tabSync = document.getElementById('tabBtnSync');
+  const tabDl = document.getElementById('tabBtnDl');
+  const tabDrop = document.getElementById('tabBtnDrop');
+
+  const paneSync = document.getElementById('suitePaneSync');
+  const paneDl = document.getElementById('suitePaneDl');
+  const paneDrop = document.getElementById('suitePaneDrop');
+
+  [tabSync, tabDl, tabDrop].forEach(t => t && t.classList.remove('active'));
+  [paneSync, paneDl, paneDrop].forEach(p => {
+    if (p) {
+      p.classList.add('hidden');
+      p.classList.remove('active');
+    }
+  });
+
+  if (tabKey === 'sync') {
+    if (tabSync) tabSync.classList.add('active');
+    if (paneSync) {
+      paneSync.classList.remove('hidden');
+      paneSync.classList.add('active');
+    }
+  } else if (tabKey === 'dl') {
+    if (tabDl) tabDl.classList.add('active');
+    if (paneDl) {
+      paneDl.classList.remove('hidden');
+      paneDl.classList.add('active');
+    }
+  } else if (tabKey === 'drop') {
+    if (tabDrop) tabDrop.classList.add('active');
+    if (paneDrop) {
+      paneDrop.classList.remove('hidden');
+      paneDrop.classList.add('active');
+    }
+  }
+}
+window.switchSuiteTab = switchSuiteTab;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const hash = window.location.hash;
+  if (hash === '#tai-nhac') {
+    switchSuiteTab('dl');
+  } else if (hash === '#airdrop' || hash === '#drop') {
+    switchSuiteTab('drop');
+  } else if (hash === '#ghep-nhac') {
+    switchSuiteTab('sync');
+  }
+});
+
 /* ==========================================================================
    STYLEFIT SAVEFROM MEDIA DOWNLOADER LOGIC
    ========================================================================== */

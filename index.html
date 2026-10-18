@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=5.1">
+  <link rel="stylesheet" href="style.css?v=6.0">
 </head>
 <body>
 
@@ -43,20 +43,39 @@
       <!-- Desktop Navigation Menu -->
       <nav class="desktop-nav">
         <a href="#hero" class="nav-link active">Trang Chủ</a>
-        <a href="#ghep-nhac" class="nav-link tool-nav-link">
-          <span class="sparkle">🎵</span> Ghép Nhạc
-          <span class="nav-badge-hot">HOT</span>
-        </a>
-        <a href="#tai-nhac" class="nav-link tool-nav-link">
-          <span class="sparkle">⚡</span> Tải Nhạc/Video
-          <span class="nav-badge-hot" style="background: linear-gradient(135deg, #00E5FF, #0077FF); color: #fff;">SAVEFROM</span>
-        </a>
-        <a href="drop.html" class="nav-link tool-nav-link">
-          <span class="sparkle">🚀</span> StyleFit Drop
-          <span class="nav-badge-hot" style="background: linear-gradient(135deg, #10B981, #00E5FF); color: #000;">P2P</span>
-        </a>
+
+        <!-- Studio Tools Dropdown -->
+        <div class="nav-dropdown">
+          <a href="#studio-suite" class="nav-link nav-dropdown-trigger" onclick="switchSuiteTab('sync')">
+            <span class="sparkle">⚡</span> Bộ Công Cụ Studio ▾
+          </a>
+          <div class="nav-dropdown-menu">
+            <a href="#ghep-nhac" class="dropdown-item" onclick="switchSuiteTab('sync')">
+              <span class="d-icon">🎵</span>
+              <div>
+                <strong>Ghép Nhạc Chuẩn Nhịp</strong>
+                <span>Khớp nhịp sóng âm mili-giây</span>
+              </div>
+            </a>
+            <a href="#tai-nhac" class="dropdown-item" onclick="switchSuiteTab('dl')">
+              <span class="d-icon">⚡</span>
+              <div>
+                <strong>Tải Nhạc & Video HD</strong>
+                <span>YouTube, Reels, TikTok, SoundCloud</span>
+              </div>
+            </a>
+            <a href="drop.html" class="dropdown-item">
+              <span class="d-icon">🚀</span>
+              <div>
+                <strong>StyleFit AirDrop (P2P)</strong>
+                <span>Truyền video 4K không nén</span>
+              </div>
+            </a>
+          </div>
+        </div>
+
         <a href="#step-dance" class="nav-link">Step Dance</a>
-        <a href="#co-so" class="nav-link">Lịch Tập & Cơ Sở</a>
+        <a href="#co-so" class="nav-link">2 Cơ Sở & Lịch Tập</a>
         <a href="#bang-gia" class="nav-link">Bảng Giá</a>
         <a href="#faq" class="nav-link">Hỏi Đáp</a>
       </nav>
@@ -87,14 +106,14 @@
       </div>
       <nav class="drawer-nav">
         <a href="#hero" class="drawer-link" onclick="closeMobileDrawer()">🏠 Trang Chủ</a>
-        <a href="#ghep-nhac" class="drawer-link drawer-tool-link" onclick="closeMobileDrawer()">
-          🎵 Công Cụ Ghép Nhạc Tự Động <span class="drawer-badge">HOT</span>
+        <a href="#ghep-nhac" class="drawer-link drawer-tool-link" onclick="switchSuiteTab('sync'); closeMobileDrawer();">
+          🎵 Ghép Nhạc Chuẩn Nhịp (AI Sync)
         </a>
-        <a href="#tai-nhac" class="drawer-link drawer-tool-link" onclick="closeMobileDrawer()">
-          ⚡ Tải Nhạc & Video (YouTube · FB · SoundCloud) <span class="drawer-badge" style="background: #00E5FF; color: #000;">NEW</span>
+        <a href="#tai-nhac" class="drawer-link drawer-tool-link" onclick="switchSuiteTab('dl'); closeMobileDrawer();">
+          ⚡ Tải Nhạc & Video HD (SaveFrom)
         </a>
-        <a href="drop.html" class="drawer-link drawer-tool-link" onclick="closeMobileDrawer()">
-          🚀 StyleFit Drop (Truyền Video P2P) <span class="drawer-badge" style="background: #10B981; color: #000;">P2P</span>
+        <a href="#airdrop" class="drawer-link drawer-tool-link" onclick="switchSuiteTab('drop'); closeMobileDrawer();">
+          🚀 StyleFit AirDrop (Truyền File P2P)
         </a>
         <a href="#step-dance" class="drawer-link" onclick="closeMobileDrawer()">💃 Bộ Môn Step Dance</a>
         <a href="#co-so" class="drawer-link" onclick="closeMobileDrawer()">📍 2 Cơ Sở & Lịch Tập</a>
@@ -116,33 +135,47 @@
     <div class="container hero-container">
       <div class="hero-content">
         <div class="hero-badge">
-          <span class="pulse-dot"></span> STUDIO STEP DANCE HÀNG ĐẦU HẢI PHÒNG
+          <span class="pulse-dot"></span> STUDIO STEP DANCE & CÔNG NGHỆ NHẠC SỐ 1 HẢI PHÒNG
         </div>
         <h1 class="hero-title">
           Cháy Cùng <span class="highlight">Nhịp Điệu</span><br>
           Bứt Phá <span class="highlight-cyan">Vóc Dáng Chuẩn Fit</span>
         </h1>
         <p class="hero-subtitle">
-          Hệ thống phòng tập <strong>Step Dance & Thể thao âm nhạc độc quyền</strong> tại Hải Phòng. 
-          Đốt cháy <strong>600–800 kcal/buổi</strong>, giải tỏa căng thẳng cực đỉnh kết hợp kiểm soát chỉ số mỡ & cơ bắp khoa học theo chuẩn máy đo <strong>Tanita Nhật Bản</strong>.
+          Sự kết hợp giữa <strong>Hệ thống phòng tập Step Dance năng lượng cao</strong> tại Hải Phòng và <strong>Bộ công cụ Studio độc quyền</strong> giúp bạn bắt trọn từng nhịp beat, đốt cháy 600–800 kcal/buổi và kiến tạo vóc dáng lý tưởng.
         </p>
 
-        <!-- CTA Buttons -->
-        <div class="hero-cta-group">
-          <a href="#dang-ky" class="btn-hero-primary">
-            <span class="btn-icon">🔥</span>
-            <span>Đăng Ký Tập Thử Miễn Phí (0đ)</span>
+        <!-- Quick Access Switcher Cards (2 Portals) -->
+        <div class="hero-portals-grid">
+          <a href="#studio-suite" class="hero-portal-card tool-portal" onclick="switchSuiteTab('sync')">
+            <div class="portal-badge">DÀNH CHO DANCER & CREATOR</div>
+            <div class="portal-body">
+              <span class="portal-icon">🎵</span>
+              <div class="portal-text">
+                <strong>Studio Sáng Tạo Online</strong>
+                <span>Ghép nhạc tự động · Tải video HD · Truyền file P2P</span>
+              </div>
+            </div>
+            <div class="portal-arrow">Mở công cụ ngay ➔</div>
           </a>
-          <a href="#ghep-nhac" class="btn-hero-secondary">
-            <span class="btn-icon">🎵</span>
-            <span>Công Cụ Ghép Nhạc Video</span>
+
+          <a href="#co-so" class="hero-portal-card studio-portal">
+            <div class="portal-badge highlight">HỌC VIÊN TẠI HẢI PHÒNG</div>
+            <div class="portal-body">
+              <span class="portal-icon">💃</span>
+              <div class="portal-text">
+                <strong>2 Cơ Sở & Lịch Tập</strong>
+                <span>Xem lịch các ca tập · Nhận vé tập thử 0đ miễn phí</span>
+              </div>
+            </div>
+            <div class="portal-arrow">Xem lịch & Đăng ký ➔</div>
           </a>
         </div>
 
         <!-- Social Proof Stats Bar -->
         <div class="hero-stats-grid">
           <div class="stat-card">
-            <div class="stat-value">1,500+</div>
+            <div class="stat-value">2,000+</div>
             <div class="stat-label">Hội viên theo tập</div>
           </div>
           <div class="stat-card">
@@ -162,19 +195,47 @@
     </div>
   </section>
 
-  <!-- SECTION: CÔNG CỤ GHÉP NHẠC TỰ ĐỘNG (MUSIC SYNC STUDIO) -->
-  <section class="tool-section-wrapper" id="ghep-nhac">
+  <!-- MODUL 3: STYLEFIT CREATOR SUITE (DOCK 3 TAB) -->
+  <section class="suite-section-wrapper" id="studio-suite">
+    <!-- Anchor targets for backward compatibility and deep linking -->
+    <div id="ghep-nhac" class="suite-anchor"></div>
+    <div id="tai-nhac" class="suite-anchor"></div>
+    <div id="airdrop" class="suite-anchor"></div>
+
     <div class="container">
       
-      <!-- Tool Section Header -->
-      <div class="section-header-box">
-        <div class="section-mini-badge">🎧 CÔNG NGHỆ ĐỘC QUYỀN HLV & DANCER</div>
-        <h2 class="section-heading">Công Cụ Ghép Nhạc Video Nhảy Chuẩn Mili-giây</h2>
-        <p class="section-subtext">
-          Quay video nhảy tại phòng tập có tiếng loa rè, tiếng hò reo? 
-          Hệ thống <strong>tự động đối chiếu sóng âm</strong>, khử rè, căn khớp bản nhạc gốc chất lượng cao và giữ trọn vẹn <strong>chất lượng 4K / 1080p 60fps</strong> trong 2 giây!
+      <!-- Suite Master Header & Tab Dock -->
+      <div class="suite-header-box">
+        <div class="suite-badge">
+          <span class="pulse-dot"></span> STYLEFIT CREATOR SUITE
+        </div>
+        <h2 class="suite-heading">Trung Tâm Sáng Tạo Video & Âm Nhạc</h2>
+        <p class="suite-subtext">
+          Bộ 3 công cụ độc quyền dành cho HLV, Dancer & Nhà sáng tạo: Ghép nhạc chuẩn sóng âm, tải media trực tiếp và truyền video 4K siêu tốc.
         </p>
+
+        <!-- Segmented Tab Dock Switcher -->
+        <div class="suite-tabs-dock">
+          <button type="button" class="suite-tab-btn active" id="tabBtnSync" onclick="switchSuiteTab('sync', this)">
+            <span class="tab-icon">🎵</span>
+            <span class="tab-text">Ghép Nhạc Chuẩn Nhịp</span>
+            <span class="tab-badge-glow">AI Sync</span>
+          </button>
+          <button type="button" class="suite-tab-btn" id="tabBtnDl" onclick="switchSuiteTab('dl', this)">
+            <span class="tab-icon">⚡</span>
+            <span class="tab-text">Tải Nhạc & Video HD</span>
+            <span class="tab-badge-glow cyan">SaveFrom</span>
+          </button>
+          <button type="button" class="suite-tab-btn" id="tabBtnDrop" onclick="switchSuiteTab('drop', this)">
+            <span class="tab-icon">🚀</span>
+            <span class="tab-text">StyleFit AirDrop</span>
+            <span class="tab-badge-glow green">P2P 4K</span>
+          </button>
+        </div>
       </div>
+
+      <!-- TAB 1 PANE: GHÉP NHẠC TỰ ĐỘNG -->
+      <div id="suitePaneSync" class="suite-tab-pane active">
 
       <!-- Quick 3-Step Visual Infographic -->
       <div class="tool-quick-guide">
@@ -630,25 +691,13 @@
         </section>
 
       </div>
-    </div>
-  </section>
+      <!-- END TAB 1 PANE -->
 
-  <!-- SECTION: CÔNG CỤ TẢI NHẠC & VIDEO (SAVEFROM STYLE) -->
-  <section class="tool-section-wrapper downloader-section-bg" id="tai-nhac">
-    <div class="container">
-      
-      <!-- Section Header -->
-      <div class="section-header-box">
-        <div class="section-mini-badge">⚡ SAVEFROM STYLE · TẢI TRỰC TIẾP VỀ MÁY</div>
-        <h2 class="section-heading">Công Cụ Tải Nhạc & Video Chuẩn Studio</h2>
-        <p class="section-subtext">
-          Tải âm thanh <strong>MP3 320kbps</strong> cực căng cho phòng tập & <strong>Video MP4 HD / 1080p</strong> từ <strong>YouTube, Facebook, SoundCloud</strong>.<br>
-          Tải thẳng về điện thoại hoặc máy tính của bạn trong giây lát (hỗ trợ độ dài tối đa 90 phút).
-        </p>
-      </div>
-
-      <!-- Main Downloader Card -->
-      <div class="tool-card-shell downloader-shell">
+      <!-- TAB 2 PANE: TẢI NHẠC & VIDEO HD -->
+      <div id="suitePaneDl" class="suite-tab-pane hidden">
+        
+        <!-- Main Downloader Card -->
+        <div class="tool-card-shell downloader-shell">
         
         <!-- Platform badges bar -->
         <div class="downloader-platforms-bar">
@@ -755,7 +804,55 @@
 
       </div>
     </div>
-  </section>
+    <!-- END TAB 2 PANE -->
+
+    <!-- TAB 3 PANE: STYLEFIT AIRDROP (P2P FILE TRANSFER) -->
+    <div id="suitePaneDrop" class="suite-tab-pane hidden">
+      <div class="airdrop-hub-card">
+        <div class="suite-badge" style="color: #10B981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);">
+          🚀 WEBRTC PEER-TO-PEER · ZERO COMPRESSION
+        </div>
+        <h3 style="font-size: 1.8rem; font-weight: 800; color: #FFFFFF; margin: 12px 0 8px;">
+          Truyền Video Gốc 4K Không Dây & Không Giới Hạn Dung Lượng
+        </h3>
+        <p style="color: var(--text-muted); max-width: 650px; margin: 0 auto; line-height: 1.6;">
+          Gửi trực tiếp video nhảy từ iPhone sang máy tính hoặc Android qua mạng nội bộ trong tích tắc. Không qua máy chủ trung gian, không nén giảm chất lượng!
+        </p>
+
+        <div class="airdrop-hub-features">
+          <div class="airdrop-feat-item">
+            <div class="airdrop-feat-icon">⚡</div>
+            <strong>Tốc Độ Tối Đa Wi-Fi</strong>
+            <span>Tận dụng băng thông Wi-Fi nội bộ tốc độ cao, gửi video 2GB chỉ mất vài chục giây.</span>
+          </div>
+          <div class="airdrop-feat-item">
+            <div class="airdrop-feat-icon">🔒</div>
+            <strong>Bảo Mật 100% P2P</strong>
+            <span>Dữ liệu truyền thẳng giữa 2 máy, không lưu bất kỳ byte nào trên server StyleFit.</span>
+          </div>
+          <div class="airdrop-feat-item">
+            <div class="airdrop-feat-icon">📱</div>
+            <strong>Đa Nền Tảng Không Cần Cài App</strong>
+            <span>Tương thích tức thì với iOS Safari, Android Chrome, Windows PC và MacBook.</span>
+          </div>
+        </div>
+
+        <div class="airdrop-actions-row">
+          <a href="drop.html" target="_blank" class="btn-primary btn-cta-large" style="text-decoration: none;">
+            <span class="btn-icon">🚀</span>
+            <span>Mở Trình Truyền File StyleFit AirDrop</span>
+          </a>
+          <a href="drop.html" class="btn-secondary btn-cta-large" style="text-decoration: none;">
+            <span class="btn-icon">📲</span>
+            <span>Kết Nối Phòng Truyền File (Room)</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <!-- END TAB 3 PANE -->
+
+  </div>
+</section>
 
   <!-- SECTION: STEP DANCE & LỢI ÍCH -->
   <section class="features-section" id="step-dance">
@@ -768,29 +865,91 @@
         </p>
       </div>
 
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon-wrap">🔥</div>
-          <h3>Đốt 600–800 Kcal Mỗi Buổi</h3>
-          <p>Chuyển động bước chân liên tục trên bục nhảy tác động sâu vào nhóm cơ mông, đùi và siết gọn vòng hai. Lượng calo tiêu hao gấp 2 lần chạy bộ thông thường.</p>
+      <div class="bento-grid">
+        <!-- Card 1: Wide High-Energy Card -->
+        <div class="bento-card bento-wide">
+          <div>
+            <div class="bento-header">
+              <div class="bento-icon-box">🔥</div>
+              <div>
+                <h3>Đốt 600–800 Kcal Mỗi Buổi Tập</h3>
+                <span style="font-size: 0.8rem; color: var(--primary); font-weight: 700;">HIIT CARDIO INTENSIVE</span>
+              </div>
+            </div>
+            <p>
+              Chuyển động bước chân liên tục trên bục nhảy kết hợp âm nhạc dồn dập giúp kích hoạt toàn bộ nhóm cơ mông, đùi và siết eo thần tốc. Hiệu quả đốt mỡ dư thừa kéo dài liên tục 24h sau buổi tập (hiệu ứng EPOC) vượt trội gấp 2 lần chạy bộ thông thường.
+            </p>
+          </div>
+          <div class="bento-metric-bar">
+            <div>
+              <div class="bento-metric-val">-750 kcal</div>
+              <div class="bento-metric-label">Tiêu hao trung bình / ca 60 phút</div>
+            </div>
+            <div style="text-align: right;">
+              <div class="bento-metric-val" style="color: #00E5FF;">x2 Lần</div>
+              <div class="bento-metric-label">Tốc độ siết mỡ so với Gym/Chạy bộ</div>
+            </div>
+          </div>
         </div>
 
-        <div class="feature-card">
-          <div class="feature-icon-wrap">🎵</div>
-          <h3>Âm Nhạc Bùng Nổ · Xả Két Stress</h3>
-          <p>Quên đi áp lực công việc hàng ngày với những bản mix nhạc sôi động được biên đạo độc quyền bởi HLV DuyK StepHi. Mỗi buổi tập là một lễ hội âm nhạc tràn ngập năng lượng.</p>
+        <!-- Card 2: Music Energy -->
+        <div class="bento-card">
+          <div class="bento-header">
+            <div class="bento-icon-box" style="background: rgba(0, 229, 255, 0.12); border-color: rgba(0, 229, 255, 0.3);">🎵</div>
+            <div>
+              <h3>Âm Nhạc Bùng Nổ</h3>
+              <span style="font-size: 0.8rem; color: #00E5FF; font-weight: 700;">VINAHOUSE & REMIX TREND</span>
+            </div>
+          </div>
+          <p>
+            Quên đi áp lực công việc hàng ngày với những bản mix nhạc sôi động được biên đạo độc quyền bởi HLV DuyK StepHi. Mỗi buổi tập là một lễ hội âm nhạc tràn ngập năng lượng.
+          </p>
+          <div style="margin-top: 16px; font-size: 0.82rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px;">
+            <span>🎧 130–145 BPM</span> • <span>Bắt nhịp từng chuyển động</span>
+          </div>
         </div>
 
-        <div class="feature-card">
-          <div class="feature-icon-wrap">👟</div>
-          <h3>Người Mới Tập Dễ Dàng Bắt Nhịp</h3>
-          <p>Không yêu cầu bạn phải có năng khiếu hay biết nhảy từ trước. Các tổ hợp bước bục được chia nhỏ từ cấp độ cơ bản nhất, HLV theo sát chỉnh từng bước chân.</p>
+        <!-- Card 3: Easy for beginners -->
+        <div class="bento-card">
+          <div class="bento-header">
+            <div class="bento-icon-box" style="background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.3);">👟</div>
+            <div>
+              <h3>Người Mới Dễ Bắt Nhịp</h3>
+              <span style="font-size: 0.8rem; color: #10B981; font-weight: 700;">PHƯƠNG PHÁP STEPHI</span>
+            </div>
+          </div>
+          <p>
+            Không cần có năng khiếu hay biết nhảy từ trước! Các tổ hợp bước bục được chia nhỏ từ mức cơ bản nhất, HLV theo sát chỉnh từng thế chân giúp bạn tự tin nhảy sau 3 buổi.
+          </p>
+          <div style="margin-top: 16px; font-size: 0.82rem; color: var(--text-dim); display: flex; align-items: center; gap: 6px;">
+            <span>⭐ 100% Học viên mới</span> • <span>Hòa nhập ngay buổi đầu</span>
+          </div>
         </div>
 
-        <div class="feature-card">
-          <div class="feature-icon-wrap">📊</div>
-          <h3>Quản Lý Chỉ Số Tanita Khoa Học</h3>
-          <p>Tập luyện có mục tiêu rõ ràng! Hội viên được đo quét chỉ số mỡ dưới da, mỡ nội tạng, khối lượng cơ và tuổi sinh học định kỳ, xem ngay trên Cổng Hội Viên.</p>
+        <!-- Card 4: Tanita Body Scan -->
+        <div class="bento-card bento-wide">
+          <div>
+            <div class="bento-header">
+              <div class="bento-icon-box" style="background: rgba(254, 116, 9, 0.12); border-color: rgba(254, 116, 9, 0.3);">📊</div>
+              <div>
+                <h3>Kiểm Soát Chỉ Số Tanita Chuẩn Y Khoa Nhật Bản</h3>
+                <span style="font-size: 0.8rem; color: var(--primary); font-weight: 700;">BODY COMPOSITION SCAN</span>
+              </div>
+            </div>
+            <p>
+              Tập luyện có mục tiêu khoa học rõ ràng! Hội viên StyleFit được đo quét chỉ số mỡ dưới da, mỡ nội tạng, khối lượng cơ bắp và tuổi sinh học định kỳ, theo dõi tiến độ giảm mỡ tăng cơ trực tiếp trên Cổng Hội Viên.
+            </p>
+          </div>
+          <div class="bento-metric-bar">
+            <div>
+              <div class="bento-metric-val" style="color: #10B981;">-3 đến -5 kg</div>
+              <div class="bento-metric-label">Mỡ thừa giảm sau 1 liệu trình</div>
+            </div>
+            <div style="text-align: right;">
+              <div class="bento-metric-val" style="color: #FFFFFF;">Tanita MC-780</div>
+              <div class="bento-metric-label">Máy đo đa tần số chuyên dụng</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -823,6 +982,10 @@
             <h3>StyleFit Thiện Lộc (Thiên Lôi)</h3>
             <p class="branch-desc">Không gian tập luyện chuyên biệt cho Step Dance với sàn gỗ cao cấp, dàn bục tiêu chuẩn quốc tế và hệ thống âm thanh vòm sống động.</p>
             
+            <p class="branch-address" style="color: var(--primary); font-size: 0.92rem; margin: 10px 0 14px; display: flex; align-items: center; gap: 6px;">
+              <span>📍</span> <strong>Khu vực Thiện Lộc / Thiên Lôi, Lê Chân, Hải Phòng</strong>
+            </p>
+
             <ul class="branch-amenities">
               <li>✨ Sàn gỗ giảm chấn bảo vệ cổ chân & khớp gối</li>
               <li>❄️ Hệ thống điều hòa nhiệt độ luôn mát mẻ dễ chịu</li>
@@ -832,7 +995,8 @@
 
             <div class="branch-cta-row">
               <a href="#dang-ky" class="btn-branch-register">🔥 Đăng Ký Tập Tại Cơ Sở 1</a>
-              <a href="https://zalo.me/0989000000" target="_blank" class="btn-branch-zalo">💬 Nhắn Zalo HLV</a>
+              <a href="https://maps.google.com/?q=Thien+Loi+Le+Chan+Hai+Phong" target="_blank" class="btn-branch-maps" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:10px;color:#fff;text-decoration:none;font-size:0.88rem;font-weight:600;">🗺️ Bản Đồ Chỉ Đường</a>
+              <a href="https://zalo.me/0989000000" target="_blank" class="btn-branch-zalo">💬 Zalo HLV</a>
             </div>
           </div>
 
@@ -883,6 +1047,10 @@
             <h3>StyleFit Hồng Bàng (Trung Tâm TP)</h3>
             <p class="branch-desc">Tọa lạc tại khu vực trung tâm quận Hồng Bàng, thuận tiện giao thông đi lại cho học viên các tuyến phố nội thành Hải Phòng.</p>
             
+            <p class="branch-address" style="color: var(--primary); font-size: 0.92rem; margin: 10px 0 14px; display: flex; align-items: center; gap: 6px;">
+              <span>📍</span> <strong>Trung Tâm Quận Hồng Bàng, Hải Phòng</strong>
+            </p>
+
             <ul class="branch-amenities">
               <li>✨ Studio thiết kế phong cách Dark Luxury hiện đại</li>
               <li>🚗 Bãi đỗ xe ô tô và xe máy rộng rãi, an ninh tốt</li>
@@ -892,7 +1060,8 @@
 
             <div class="branch-cta-row">
               <a href="#dang-ky" class="btn-branch-register">🔥 Đăng Ký Tập Tại Cơ Sở 2</a>
-              <a href="https://zalo.me/0989000000" target="_blank" class="btn-branch-zalo">💬 Nhắn Zalo HLV</a>
+              <a href="https://maps.google.com/?q=Hong+Bang+Hai+Phong" target="_blank" class="btn-branch-maps" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:10px;color:#fff;text-decoration:none;font-size:0.88rem;font-weight:600;">🗺️ Bản Đồ Chỉ Đường</a>
+              <a href="https://zalo.me/0989000000" target="_blank" class="btn-branch-zalo">💬 Zalo HLV</a>
             </div>
           </div>
 
@@ -1238,7 +1407,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="sync-engine.js?v=5.1"></script>
-  <script src="app.js?v=5.1"></script>
+  <script src="sync-engine.js?v=6.0"></script>
+  <script src="app.js?v=6.0"></script>
 </body>
 </html>
