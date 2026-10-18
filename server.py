@@ -8,9 +8,25 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+BASE_DIR = Path(__file__).resolve().parent
+
+if sys.stdout is None:
+    try:
+        sys.stdout = open(BASE_DIR / "server.log", "a", encoding="utf-8", buffering=1)
+    except Exception:
+        pass
+
+if sys.stderr is None:
+    try:
+        sys.stderr = open(BASE_DIR / "server.log", "a", encoding="utf-8", buffering=1)
+    except Exception:
+        pass
+
 try:
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    if sys.stdout is not None:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if sys.stderr is not None:
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 except Exception:
     pass
 

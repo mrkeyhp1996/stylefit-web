@@ -14,6 +14,11 @@ from fastapi import HTTPException
 
 # Cấu hình logging
 logger = logging.getLogger("media_downloader")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    _fh = logging.FileHandler(Path(__file__).resolve().parent / "downloader.log", encoding="utf-8")
+    _fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logger.addHandler(_fh)
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMP_DOWNLOADS_DIR = BASE_DIR / "temp_downloads"
@@ -28,7 +33,7 @@ download_semaphore = asyncio.Semaphore(3)
 # Danh sách domain được hỗ trợ
 SUPPORTED_DOMAINS = [
     "youtube.com", "youtu.be",
-    "soundcloud.com",
+    "soundcloud.com", "on.soundcloud.com",
     "facebook.com", "fb.watch", "fb.com"
 ]
 
@@ -58,7 +63,7 @@ def detect_platform(url: str) -> str:
     u = url.lower()
     if "youtube.com" in u or "youtu.be" in u:
         return "youtube"
-    if "soundcloud.com" in u:
+    if "soundcloud.com" in u or "on.soundcloud.com" in u:
         return "soundcloud"
     if "facebook.com" in u or "fb.watch" in u or "fb.com" in u:
         return "facebook"
@@ -83,6 +88,7 @@ def extract_media_info_sync(url: str, platform: str) -> Dict[str, Any]:
         'no_warnings': True,
         'skip_download': True,
         'extract_flat': False,
+        'noplaylist': True,
     }
     
     try:
@@ -92,8 +98,19 @@ def extract_media_info_sync(url: str, platform: str) -> Dict[str, Any]:
                 raise ValueError("Không thể lấy dữ liệu từ link này.")
 
             # Nếu là playlist, lấy video đầu tiên
-            if "entries" in info and info["entries"]:
-                info = info["entries"][0]
+            if "entries" in info:
+                entries = [e for e in info.get("entries", []) if e]
+                if not entries:
+                    raise HTTPException(status_code=400, detail="Danh sách phát rỗng hoặc không tìm thấy bài hát nào.")
+                info = entries[0]
+
+            # Kiểm tra nếu là livestream đang phát trực tiếp
+            is_live = info.get("is_live") or info.get("live_status") in ("is_live", "is_upcoming")
+            if is_live:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Không thể tải video đang phát trực tiếp (Livestream). Vui lòng chọn video đã kết thúc phát sóng!"
+                )
 
             duration = info.get("duration", 0) or 0
             if duration > MAX_DURATION_SECONDS:
@@ -110,10 +127,24 @@ def extract_media_info_sync(url: str, platform: str) -> Dict[str, Any]:
             # Phân loại định dạng có thể tải
             formats = info.get("formats", [])
             max_height = 0
+            max_width = 0
+            has_video = False
+            has_hd = False
             for f in formats:
                 h = f.get("height")
+                w = f.get("width")
                 if h and isinstance(h, int) and h > max_height:
                     max_height = h
+                if w and isinstance(w, int) and w > max_width:
+                    max_width = w
+                if f.get("vcodec") and f.get("vcodec") != "none":
+                    has_video = True
+                if f.get("format_id") in ("sd", "hd"):
+                    has_video = True
+                if f.get("format_id") == "hd":
+                    has_hd = True
+
+            effective_max = max(max_height, max_width)
 
             audio_options = [
                 {
@@ -143,8 +174,8 @@ def extract_media_info_sync(url: str, platform: str) -> Dict[str, Any]:
             ]
 
             video_options = []
-            if platform in ("youtube", "facebook") and max_height > 0:
-                if max_height >= 1080:
+            if platform in ("youtube", "facebook") and (has_video or effective_max > 0):
+                if effective_max >= 1080:
                     video_options.append({
                         "format_id": "video_1080",
                         "label": "MP4 - 1080p Full HD",
@@ -153,7 +184,7 @@ def extract_media_info_sync(url: str, platform: str) -> Dict[str, Any]:
                         "ext": "mp4",
                         "badge": "FULL HD"
                     })
-                if max_height >= 720:
+                if effective_max >= 720 or has_hd:
                     video_options.append({
                         "format_id": "video_720",
                         "label": "MP4 - 720p HD",
@@ -189,11 +220,15 @@ def extract_media_info_sync(url: str, platform: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Lỗi extract info cho {url}: {e}")
         err_msg = str(e)
-        if "Private video" in err_msg or "Sign in" in err_msg:
-            raise HTTPException(status_code=400, detail="Video hoặc bài hát này ở chế độ riêng tư hoặc yêu cầu đăng nhập.")
-        if "Video unavailable" in err_msg:
-            raise HTTPException(status_code=400, detail="Không tìm thấy nội dung hoặc đường link đã bị xóa.")
-        raise HTTPException(status_code=500, detail=f"Không thể phân tích link: {err_msg[:200]}")
+        err_lower = err_msg.lower()
+        if any(k in err_lower for k in ("private", "sign in", "login", "members-only")):
+            raise HTTPException(status_code=400, detail="Video hoặc bài hát này ở chế độ riêng tư, cần đăng nhập hoặc dành cho hội viên.")
+        if any(k in err_lower for k in ("unavailable", "not found", "404", "does not exist", "isn't available")):
+            raise HTTPException(status_code=400, detail="Không tìm thấy nội dung hoặc đường link đã bị xóa / không còn tồn tại trên nền tảng.")
+        if any(k in err_lower for k in ("unsupported url", "invalid url", "no media")):
+            raise HTTPException(status_code=400, detail="Đường link không đúng định dạng hoặc không có media hợp lệ.")
+        clean_err = re.sub(r'^(ERROR:\s*)+', '', err_msg).strip()
+        raise HTTPException(status_code=400, detail=f"Không thể phân tích liên kết: {clean_err[:150]}")
 
 
 async def get_media_info(url: str) -> Dict[str, Any]:
@@ -214,6 +249,7 @@ def download_media_sync(url: str, format_id: str) -> tuple[Path, str, str]:
         'windowsfilenames': True,
         'restrictfilenames': True,
         'trim_file_name': 50,
+        'noplaylist': True,
         'quiet': True,
         'no_warnings': True,
     }
@@ -313,6 +349,10 @@ def download_media_sync(url: str, format_id: str) -> tuple[Path, str, str]:
 
 async def download_media(url: str, format_id: str) -> tuple[Path, str, str]:
     """Giới hạn tối đa 3 tác vụ tải đồng thời để bảo vệ Mini PC."""
+    try:
+        cleanup_temp_downloads()
+    except Exception:
+        pass
     async with download_semaphore:
         return await asyncio.to_thread(download_media_sync, url, format_id)
 
