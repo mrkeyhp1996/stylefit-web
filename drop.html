@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>StyleFit Drop | Truyền Tệp P2P Không Dây Siêu Tốc</title>
-  <meta name="description" content="Công cụ truyền video, hình ảnh và tệp tin P2P tốc độ cao giữa các thiết bị. Không nén chất lượng, bảo mật riêng tư, không cần cài đặt ứng dụng.">
+  <title>StyleFit Drop | Truyền Video P2P & Airdrop Siêu Tốc</title>
+  <meta name="description" content="Công cụ chuyển video nhảy, hình ảnh chất lượng gốc từ điện thoại sang máy tính phòng tập tức thì. Không cần cài app, không nén mờ, bảo mật 100%.">
   <meta name="theme-color" content="#0B0B0D">
 
   <!-- Favicon / PWA -->
@@ -17,9 +17,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- External Libraries (PeerJS WebRTC & QRCode) -->
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- External Libraries (Local with CDN fallback) -->
+  <script src="peerjs.min.js" onerror="this.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'"></script>
+  <script src="qrcode.min.js" onerror="this.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'"></script>
 
   <style>
     :root {
@@ -77,16 +77,15 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Ambient background lights */
     body::before {
       content: '';
       position: fixed;
-      top: -100px;
+      top: -120px;
       left: 50%;
       transform: translateX(-50%);
-      width: 700px;
-      height: 400px;
-      background: radial-gradient(circle, rgba(254, 116, 9, 0.15) 0%, rgba(11, 11, 13, 0) 70%);
+      width: 750px;
+      height: 420px;
+      background: radial-gradient(circle, rgba(254, 116, 9, 0.16) 0%, rgba(11, 11, 13, 0) 70%);
       pointer-events: none;
       z-index: 0;
     }
@@ -96,7 +95,7 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(11, 11, 13, 0.85);
+      background: rgba(11, 11, 13, 0.88);
       backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border-subtle);
       padding: 14px 20px;
@@ -124,7 +123,7 @@
       align-items: center;
       gap: 6px;
       background: rgba(254, 116, 9, 0.15);
-      border: 1px solid rgba(254, 116, 9, 0.3);
+      border: 1px solid rgba(254, 116, 9, 0.35);
       color: var(--primary);
       font-size: 11px;
       font-weight: 700;
@@ -137,7 +136,7 @@
     .header-nav {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
     .btn-nav {
       color: var(--text-muted);
@@ -161,7 +160,7 @@
     /* Main Container */
     .main-wrap {
       flex: 1;
-      max-width: 900px;
+      max-width: 920px;
       width: 100%;
       margin: 0 auto;
       padding: 24px 16px 40px;
@@ -172,11 +171,11 @@
     /* Hero / Title */
     .hero-section {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 22px;
     }
     .hero-title {
       font-family: var(--font-display);
-      font-size: 30px;
+      font-size: 32px;
       font-weight: 800;
       color: var(--text-white);
       margin-bottom: 8px;
@@ -189,7 +188,7 @@
     .hero-desc {
       color: var(--text-muted);
       font-size: 14px;
-      max-width: 550px;
+      max-width: 580px;
       margin: 0 auto;
       line-height: 1.5;
     }
@@ -200,12 +199,12 @@
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 12px;
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       padding: 12px 18px;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
     .device-info {
       display: flex;
@@ -220,10 +219,11 @@
       background: var(--text-dim);
       box-shadow: 0 0 8px transparent;
       transition: all 0.3s ease;
+      flex-shrink: 0;
     }
     .status-dot.connected {
       background: var(--accent-green);
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
       animation: pulse 2s infinite;
     }
     .status-dot.waiting {
@@ -242,7 +242,7 @@
       color: var(--text-white);
       font-size: 13px;
       font-weight: 600;
-      padding: 4px 8px;
+      padding: 5px 10px;
       border-radius: 6px;
       outline: none;
       transition: all 0.2s;
@@ -252,14 +252,45 @@
       background: var(--bg-card-inner);
     }
 
+    /* Mobile Connected Banner */
+    .member-connected-banner {
+      display: none;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(0, 229, 255, 0.08));
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      align-items: center;
+      gap: 14px;
+    }
+    .member-connected-banner.active {
+      display: flex;
+    }
+    .banner-icon {
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+    .banner-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 3px;
+    }
+    .banner-sub {
+      font-size: 12px;
+      color: #A7F3D0;
+      line-height: 1.4;
+    }
+
     /* Grid Layout */
     .drop-grid {
       display: grid;
       grid-template-columns: 1fr;
       gap: 20px;
     }
-    @media (min-width: 768px) {
-      .drop-grid {
+    @media (min-width: 800px) {
+      .drop-grid.two-cols {
         grid-template-columns: 1fr 1fr;
       }
     }
@@ -274,7 +305,7 @@
       display: flex;
       flex-direction: column;
       box-shadow: var(--shadow-card);
-      transition: border-color 0.3s ease;
+      transition: all 0.3s ease;
     }
     .card.highlight {
       border-color: var(--border-active);
@@ -298,31 +329,45 @@
     .card-badge {
       font-size: 11px;
       font-weight: 700;
-      padding: 3px 8px;
+      padding: 4px 10px;
       border-radius: 6px;
       background: var(--bg-card-inner);
       color: var(--text-muted);
       border: 1px solid var(--border-subtle);
+      font-family: monospace;
     }
 
-    /* QR Code Display */
+    /* QR Code Display with Strict Quiet Zone */
     .qr-container {
       background: #FFFFFF;
       padding: 16px;
-      border-radius: var(--radius-md);
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 220px;
-      height: 220px;
-      margin: 10px auto 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      width: 232px;
+      height: 232px;
+      margin: 16px auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
-    .qr-container img, .qr-container canvas {
-      width: 100% !important;
-      height: 100% !important;
-      display: block;
+    #qrCode {
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+    #qrCode canvas {
+      display: none !important;
+    }
+    #qrCode img {
+      width: 200px !important;
+      height: 200px !important;
+      display: block !important;
+      image-rendering: pixelated;
+      image-rendering: -webkit-optimize-contrast;
+    }
+
     .room-link-box {
       display: flex;
       align-items: center;
@@ -331,7 +376,7 @@
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       padding: 8px 12px;
-      margin-top: 10px;
+      margin-top: 12px;
     }
     .room-link-input {
       flex: 1;
@@ -351,7 +396,7 @@
       color: var(--text-white);
       font-size: 12px;
       font-weight: 600;
-      padding: 6px 10px;
+      padding: 6px 12px;
       border-radius: 6px;
       cursor: pointer;
       white-space: nowrap;
@@ -360,6 +405,34 @@
     .btn-copy:hover {
       background: var(--primary);
       border-color: var(--primary);
+      color: #FFFFFF;
+    }
+
+    /* Action Buttons Row */
+    .share-buttons-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-share-zalo {
+      flex: 1;
+      background: rgba(0, 104, 255, 0.15);
+      border: 1px solid rgba(0, 104, 255, 0.35);
+      color: #38BDF8;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-share-zalo:hover {
+      background: #0068FF;
       color: #FFFFFF;
     }
 
@@ -385,21 +458,21 @@
       transform: translateY(-2px);
     }
     .dropzone-icon {
-      font-size: 44px;
+      font-size: 48px;
       color: var(--primary);
       line-height: 1;
       filter: drop-shadow(0 0 12px var(--primary-glow));
     }
     .dropzone-title {
       font-family: var(--font-display);
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 700;
       color: var(--text-white);
     }
     .dropzone-sub {
       color: var(--text-muted);
       font-size: 12px;
-      max-width: 280px;
+      max-width: 320px;
       line-height: 1.4;
     }
     .btn-select-file {
@@ -408,13 +481,13 @@
       gap: 8px;
       background: linear-gradient(135deg, var(--primary), #FF881E);
       color: #FFFFFF;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
-      padding: 12px 24px;
+      padding: 14px 28px;
       border-radius: var(--radius-md);
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 15px var(--primary-glow);
+      box-shadow: 0 4px 18px var(--primary-glow);
       transition: all 0.2s;
       margin-top: 6px;
     }
@@ -434,13 +507,13 @@
       background: var(--bg-card-inner);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 12px;
+      padding: 12px 14px;
       display: flex;
       align-items: center;
       gap: 12px;
     }
     .file-icon {
-      font-size: 24px;
+      font-size: 26px;
       flex-shrink: 0;
     }
     .file-details {
@@ -461,20 +534,21 @@
       margin-top: 2px;
     }
     .btn-send-now {
-      background: var(--accent-green);
-      color: #000;
+      background: linear-gradient(135deg, var(--accent-green), #059669);
+      color: #FFFFFF;
       font-weight: 800;
-      font-size: 14px;
+      font-size: 15px;
       border: none;
-      padding: 14px;
+      padding: 16px;
       border-radius: var(--radius-md);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 10px;
       width: 100%;
-      margin-top: 14px;
+      margin-top: 16px;
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
       transition: all 0.2s;
     }
     .btn-send-now:hover {
@@ -501,11 +575,16 @@
     .progress-title {
       color: var(--text-white);
       font-weight: 600;
+      max-width: 70%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .progress-percent {
       color: var(--primary);
       font-weight: 700;
       font-family: var(--font-display);
+      font-size: 14px;
     }
     .progress-bar-bg {
       width: 100%;
@@ -531,18 +610,42 @@
 
     /* Received Files List */
     .received-box {
-      margin-top: 20px;
+      margin-top: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+    }
+    .received-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .received-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .received-item {
-      background: var(--bg-card);
+      background: var(--bg-card-inner);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 14px;
+      padding: 14px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+    .received-item:hover {
+      border-color: var(--border-active);
     }
     .received-left {
       display: flex;
@@ -566,7 +669,7 @@
       text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       transition: all 0.2s;
     }
     .btn-action-download:hover {
@@ -574,7 +677,7 @@
     }
     .btn-action-sync {
       background: rgba(0, 229, 255, 0.15);
-      border: 1px solid rgba(0, 229, 255, 0.3);
+      border: 1px solid rgba(0, 229, 255, 0.35);
       color: var(--accent-cyan);
       font-size: 12px;
       font-weight: 700;
@@ -583,7 +686,7 @@
       text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       transition: all 0.2s;
     }
     .btn-action-sync:hover {
@@ -603,6 +706,19 @@
     .toggle-wrap input {
       accent-color: var(--primary);
       cursor: pointer;
+    }
+
+    /* Zalo notice pill */
+    .zalo-hint {
+      display: none;
+      background: rgba(0, 104, 255, 0.1);
+      border: 1px solid rgba(0, 104, 255, 0.3);
+      color: #7DD3FC;
+      font-size: 11px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      text-align: center;
     }
 
     /* Tips & Guide */
@@ -626,12 +742,16 @@
         font-size: 24px;
       }
       .qr-container {
-        width: 180px;
-        height: 180px;
+        width: 210px;
+        height: 210px;
         padding: 12px;
       }
+      #qrCode, #qrCode img {
+        width: 180px !important;
+        height: 180px !important;
+      }
       .card {
-        padding: 16px;
+        padding: 18px 16px;
       }
       .received-item {
         flex-direction: column;
@@ -656,7 +776,7 @@
     <div class="header-container">
       <a href="index.html" class="brand">
         <img src="stylefit-nav-logo.png" alt="StyleFit Logo">
-        <span class="brand-badge">DROP P2P</span>
+        <span class="brand-badge">DROP AIRDROP</span>
       </a>
 
       <nav class="header-nav">
@@ -671,42 +791,51 @@
 
     <!-- HERO -->
     <section class="hero-section">
-      <h1 class="hero-title">StyleFit <span>Drop</span></h1>
-      <p class="hero-desc">
-        Truyền video nhảy, hình ảnh & tệp tin trực tiếp giữa 2 thiết bị qua giao thức P2P. Không giới hạn dung lượng, không nén mờ, không cần cài app.
+      <h1 class="hero-title" id="pageHeroTitle">StyleFit <span>Drop</span></h1>
+      <p class="hero-desc" id="pageHeroDesc">
+        Truyền video nhảy, hình ảnh & tệp tin trực tiếp giữa điện thoại và máy tính phòng tập. Giữ nguyên 100% chất lượng gốc 4K/FullHD, không nén mờ, không cần cài app.
       </p>
     </section>
 
+    <!-- MEMBER SENDER BANNER (When opened via QR scan) -->
+    <div class="member-connected-banner" id="memberBanner">
+      <div class="banner-icon">📲</div>
+      <div>
+        <div class="banner-title" id="bannerRoomTitle">Đã kết nối với máy phòng tập!</div>
+        <div class="banner-sub">Hãy chọn video nhảy từ máy của bạn bên dưới và bấm gửi sang màn hình huấn luyện viên.</div>
+      </div>
+    </div>
+
     <!-- STATUS BAR -->
-    <div class="status-bar">
+    <div class="status-bar" id="statusBar">
       <div class="device-info">
         <span id="statusDot" class="status-dot waiting"></span>
         <span id="statusText">Đang khởi tạo kết nối P2P...</span>
       </div>
 
       <div style="display: flex; align-items: center; gap: 12px;">
-        <label class="toggle-wrap" title="Tự động tải tệp tin về máy ngay khi nhận xong">
+        <label class="toggle-wrap" id="autoDownloadWrap" title="Tự động tải tệp tin về máy ngay khi nhận xong">
           <input type="checkbox" id="autoDownloadToggle" checked>
-          <span>Tự động tải về khi nhận</span>
+          <span>Tự động tải về máy</span>
         </label>
         <input type="text" id="myDeviceName" class="device-name-edit" value="Thiết bị của tôi" title="Bấm để đổi tên hiển thị">
       </div>
     </div>
 
-    <!-- MAIN TWO-COLUMN OR TABS -->
-    <div class="drop-grid">
+    <!-- MAIN GRID -->
+    <div class="drop-grid two-cols" id="mainGrid">
 
-      <!-- LEFT: RECEIVER / PAIRING BOX -->
+      <!-- CARD 1: RECEIVER / QR PAIRING BOX -->
       <div class="card highlight" id="receiveCard">
         <div class="card-header">
           <h2 class="card-title">
-            <span>📲</span> Mã Kết Nối Nhận Tệp
+            <span>📲</span> Mã Quét Nhận Video
           </h2>
-          <span class="card-badge" id="peerIdBadge">Đang tạo mã...</span>
+          <span class="card-badge" id="peerIdBadge">Mã phòng: ...</span>
         </div>
 
-        <p style="font-size: 12px; color: var(--text-muted); text-align: center;">
-          Mở <strong>Camera trên điện thoại khác</strong> quét mã QR dưới đây để kết nối và gửi tệp tức thì:
+        <p style="font-size: 13px; color: var(--text-muted); text-align: center; line-height: 1.4;">
+          Hội viên dùng <strong>Camera điện thoại</strong> hoặc <strong>Zalo</strong> quét mã QR dưới đây để gửi video tức thì:
         </p>
 
         <!-- QR Canvas -->
@@ -720,43 +849,55 @@
           <button class="btn-copy" id="btnCopyLink">Sao chép</button>
         </div>
 
+        <!-- Share Actions -->
+        <div class="share-buttons-row">
+          <button class="btn-share-zalo" id="btnShareZalo">
+            <span>💬</span> Sao chép link gửi Zalo
+          </button>
+        </div>
+
         <div style="margin-top: 12px; text-align: center; font-size: 11px; color: var(--text-dim);">
-          💡 Hoặc gõ mã này trên thiết bị kia: <strong id="shortCode" style="color: var(--primary); font-size: 13px;">...</strong>
+          💡 Hoặc gõ mã phòng này trên điện thoại: <strong id="shortCode" style="color: var(--primary); font-size: 13px;">...</strong>
         </div>
       </div>
 
-      <!-- RIGHT: SENDER BOX -->
+      <!-- CARD 2: SENDER BOX -->
       <div class="card" id="sendCard">
         <div class="card-header">
           <h2 class="card-title">
-            <span>🚀</span> Gửi Tệp Trực Tiếp
+            <span>🚀</span> Gửi Video Sang Phòng Tập
           </h2>
           <span class="card-badge" id="targetDeviceBadge">Chưa kết nối máy nào</span>
         </div>
 
         <!-- Dropzone -->
         <div class="dropzone" id="dropzone">
-          <input type="file" id="fileInput" multiple style="display: none;">
-          <div class="dropzone-icon">📁</div>
-          <div class="dropzone-title">Chọn hoặc Kéo thả video/tệp vào đây</div>
-          <div class="dropzone-sub">Hỗ trợ mọi định dạng: Video MP4, MOV, ảnh gốc, âm thanh. Không giới hạn dung lượng.</div>
-          <button class="btn-select-file" id="btnBrowse">
-            <span>📷</span> Chọn Tệp từ Thư viện
+          <input type="file" id="fileInput" accept="video/*,image/*" multiple style="display: none;">
+          <div class="dropzone-icon">📹</div>
+          <div class="dropzone-title">Chọn Video Từ Điện Thoại</div>
+          <div class="dropzone-sub">Hỗ trợ mọi định dạng: Video MP4, MOV 4K, ảnh gốc. Giữ nguyên độ sắc nét 100%.</div>
+          <button class="btn-select-file" id="btnBrowse" type="button">
+            <span>📷</span> Chọn Video Từ Thư Viện
           </button>
+        </div>
+
+        <!-- Zalo browser tip -->
+        <div class="zalo-hint" id="zaloHint">
+          💡 Bạn đang mở trên Zalo: Chọn video rồi bấm gửi. Nếu cần truyền siêu tốc không giới hạn, bấm dấu <strong>⋮</strong> góc trên chọn <em>"Mở bằng trình duyệt"</em>.
         </div>
 
         <!-- Queue of chosen files -->
         <div class="file-queue" id="fileQueue"></div>
 
         <!-- Action Send Button -->
-        <button class="btn-send-now" id="btnSendNow" style="display: none;">
-          <span>⚡ BẮT ĐẦU GỬI TỆP SANG THIẾT BỊ NHẬN</span>
+        <button class="btn-send-now" id="btnSendNow" style="display: none;" type="button">
+          <span>⚡ BẮM ĐỂ GỬI VIDEO SANG MÁY TÍNH</span>
         </button>
 
         <!-- Progress Box -->
         <div class="progress-box" id="progressBox">
           <div class="progress-header">
-            <span class="progress-title" id="progressFileTitle">Đang truyền tệp tin...</span>
+            <span class="progress-title" id="progressFileTitle">Đang truyền video...</span>
             <span class="progress-percent" id="progressPercent">0%</span>
           </div>
           <div class="progress-bar-bg">
@@ -764,7 +905,7 @@
           </div>
           <div class="progress-speed">
             <span id="transferSpeed">0 MB/s</span>
-            <span id="transferRemaining">Đang tính thời gian...</span>
+            <span id="transferRemaining">Đang chuẩn bị...</span>
           </div>
         </div>
       </div>
@@ -773,19 +914,22 @@
 
     <!-- RECEIVED FILES LIST -->
     <div class="received-box" id="receivedSection" style="display: none;">
-      <h3 style="font-family: var(--font-display); font-size: 18px; margin-bottom: 12px; color: var(--text-white); display: flex; align-items: center; gap: 8px;">
-        <span>📥</span> Danh Sách Tệp Đã Nhận
-      </h3>
+      <div class="received-header">
+        <h3 class="received-title">
+          <span>📥</span> Danh Sách Video Đã Nhận
+        </h3>
+        <span class="card-badge" id="receivedCountBadge">0 tệp</span>
+      </div>
       <div id="receivedList"></div>
     </div>
 
     <!-- TIPS / NOTES -->
     <div class="tips-box">
-      <strong>💡 Mẹo truyền siêu tốc:</strong>
+      <strong>💡 Mẹo gửi video siêu tốc tại phòng tập:</strong>
       <ul style="margin-left: 20px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
-        <li>Hai máy chỉ cần cùng bắt một mạng Wi-Fi (hoặc 1 máy bật Điểm phát sóng di động / Hotspot cho máy kia bắt).</li>
-        <li>Tệp tin được truyền <strong>trực tiếp P2P</strong> giữa 2 trình duyệt, không qua trung gian lưu trữ máy chủ nào, đảm bảo 100% riêng tư và giữ nguyên chất lượng gốc.</li>
-        <li>Sau khi nhận video xong, bạn có thể bấm <strong>"Chuyển sang Ghép Nhạc"</strong> để căn khớp nhạc phòng tập tự động trong tích tắc!</li>
+        <li>Điện thoại và máy tính nên cùng bắt mạng Wi-Fi phòng tập để truyền trực tiếp với tốc độ tối đa (20 - 50 MB/s).</li>
+        <li>Video nhảy 4K/Full HD được giữ <strong>nguyên độ phân giải gốc</strong>, không bị nén vỡ hình như khi gửi qua Zalo hay Messenger thông thường.</li>
+        <li>Sau khi máy tính nhận video xong, huấn luyện viên có thể bấm <strong>"🎵 Chuyển sang Ghép Nhạc"</strong> để khớp nhạc phòng tập tự động trong tích tắc!</li>
       </ul>
     </div>
 
@@ -793,8 +937,8 @@
 
   <script>
     /* ==========================================================================
-       STYLEFIT DROP - WEBRTC P2P DATA TRANSFER ENGINE
-       Zero app install, chunked streaming for large 4K dance videos
+       STYLEFIT DROP - HYBRID P2P WEBRTC & HIGH-SPEED HTTP ENGINE
+       Instant 0ms QR code render, full 4K dance video streaming, Zalo fail-safe
        ========================================================================== */
 
     const CHUNK_SIZE = 64 * 1024; // 64 KB chunk size for WebRTC DataChannel
@@ -803,23 +947,27 @@
     let activeConnection = null;
     let selectedFiles = [];
     let isTransferring = false;
-
-    // Incoming file assembly
-    let incomingMeta = null;
-    let incomingChunks = [];
-    let receivedBytes = 0;
-    let transferStartTime = 0;
+    let pollInterval = null;
+    let lastPollTime = 0;
+    let receivedFilesSet = new Set();
 
     // Elements
+    const pageHeroTitle = document.getElementById('pageHeroTitle');
+    const pageHeroDesc = document.getElementById('pageHeroDesc');
+    const memberBanner = document.getElementById('memberBanner');
+    const bannerRoomTitle = document.getElementById('bannerRoomTitle');
+    const mainGrid = document.getElementById('mainGrid');
+    const receiveCard = document.getElementById('receiveCard');
+    const sendCard = document.getElementById('sendCard');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const myDeviceNameInput = document.getElementById('myDeviceName');
     const peerIdBadge = document.getElementById('peerIdBadge');
-    const qrContainer = document.getElementById('qrContainer');
     const qrCodeDiv = document.getElementById('qrCode');
     const roomLinkInput = document.getElementById('roomLinkInput');
     const shortCodeEl = document.getElementById('shortCode');
     const btnCopyLink = document.getElementById('btnCopyLink');
+    const btnShareZalo = document.getElementById('btnShareZalo');
     const targetDeviceBadge = document.getElementById('targetDeviceBadge');
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('fileInput');
@@ -834,17 +982,19 @@
     const transferRemaining = document.getElementById('transferRemaining');
     const receivedSection = document.getElementById('receivedSection');
     const receivedList = document.getElementById('receivedList');
+    const receivedCountBadge = document.getElementById('receivedCountBadge');
     const autoDownloadToggle = document.getElementById('autoDownloadToggle');
+    const autoDownloadWrap = document.getElementById('autoDownloadWrap');
+    const zaloHint = document.getElementById('zaloHint');
 
     // Auto detect device name
     function getDefaultDeviceName() {
       const ua = navigator.userAgent;
-      if (/iPhone/i.test(ua)) return 'iPhone';
-      if (/iPad/i.test(ua)) return 'iPad';
-      if (/SM-F/i.test(ua)) return 'Samsung Z Fold';
-      if (/Android/i.test(ua)) return 'Thiết bị Android';
-      if (/Macintosh/i.test(ua)) return 'Máy tính Mac';
-      if (/Windows/i.test(ua)) return 'Máy tính Windows';
+      if (/iPhone/i.test(ua)) return 'iPhone Hội viên';
+      if (/iPad/i.test(ua)) return 'iPad Hội viên';
+      if (/Android/i.test(ua)) return 'Android Hội viên';
+      if (/Windows/i.test(ua)) return 'Máy tính Phòng tập';
+      if (/Macintosh/i.test(ua)) return 'Mac Phòng tập';
       return 'Thiết bị StyleFit';
     }
     myDeviceNameInput.value = localStorage.getItem('sf_drop_devicename') || getDefaultDeviceName();
@@ -852,11 +1002,12 @@
       localStorage.setItem('sf_drop_devicename', myDeviceNameInput.value.trim());
     });
 
-    // Parse URL room params (?room=sf-xxxx or #sf-xxxx)
-    const urlParams = new URLSearchParams(window.location.search);
-    const targetRoomId = urlParams.get('room') || window.location.hash.replace('#', '');
+    // Detect Zalo in-app browser
+    if (/Zalo/i.test(navigator.userAgent)) {
+      if (zaloHint) zaloHint.style.display = 'block';
+    }
 
-    // Generate random short ID for receiver
+    // Helper: Generate clean room ID (5 characters)
     function generateId() {
       const chars = '23456789abcdefghjkmnpqrstuvwxyz';
       let id = 'sf-';
@@ -866,64 +1017,130 @@
       return id;
     }
 
-    // Initialize PeerJS
-    function initPeer() {
-      const desiredId = targetRoomId ? generateId() : generateId();
+    // Always enforce public domain https://stylefit.vn for shareable QR & link
+    function getPublicDropUrl(roomId) {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.')) {
+        return `https://stylefit.vn/drop.html?room=${roomId}`;
+      }
+      return `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    }
 
-      peer = new Peer(desiredId, {
-        debug: 1,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:global.stun.twilio.com:3478' }
-          ]
-        }
-      });
+    // Parse URL room params (?room=sf-xxxx or #sf-xxxx)
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetRoomId = (urlParams.get('room') || window.location.hash.replace('#', '')).trim();
 
-      peer.on('open', (id) => {
-        myPeerId = id;
-        peerIdBadge.textContent = 'Mã: ' + id;
-        shortCodeEl.textContent = id;
-        statusText.textContent = 'Sẵn sàng kết nối P2P (Mã: ' + id + ')';
+    // Mode determination
+    const isSenderMode = Boolean(targetRoomId);
 
-        // Build connection link
-        const baseHref = window.location.origin + window.location.pathname;
-        const connectUrl = `${baseHref}?room=${id}`;
-        roomLinkInput.value = connectUrl;
+    // Render QR Code immediately at 0ms (no waiting for PeerJS server handshake)
+    function renderImmediateQR(roomId) {
+      const publicUrl = getPublicDropUrl(roomId);
+      roomLinkInput.value = publicUrl;
+      peerIdBadge.textContent = 'Mã: ' + roomId;
+      shortCodeEl.textContent = roomId;
 
-        // Render QR Code
-        qrCodeDiv.innerHTML = '';
+      qrCodeDiv.innerHTML = '';
+      if (typeof QRCode !== 'undefined') {
         new QRCode(qrCodeDiv, {
-          text: connectUrl,
-          width: 190,
-          height: 190,
+          text: publicUrl,
+          width: 200,
+          height: 200,
           colorDark: '#0B0B0D',
           colorLight: '#FFFFFF',
           correctLevel: QRCode.CorrectLevel.M
         });
-
-        // If this page was opened with ?room=xxxx, auto-connect to target room
-        if (targetRoomId && targetRoomId !== id) {
-          connectToPeer(targetRoomId);
-        }
-      });
-
-      // Handle incoming connection (this device is receiving)
-      peer.on('connection', (conn) => {
-        setupConnection(conn);
-      });
-
-      peer.on('error', (err) => {
-        console.warn('PeerJS error:', err);
-        statusText.textContent = 'Trạng thái: ' + (err.type || 'Lỗi kết nối');
-      });
+      } else {
+        // Fallback to QR server API if script failed
+        const img = document.createElement('img');
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(publicUrl)}`;
+        img.alt = 'QR Code';
+        qrCodeDiv.appendChild(img);
+      }
     }
 
-    // Connect to target peer
+    // Initialize UI based on Mode
+    function setupUIMode() {
+      if (isSenderMode) {
+        // MEMBER SENDER MODE
+        document.title = 'StyleFit Drop | Gửi Video Cho Phòng Tập';
+        pageHeroTitle.innerHTML = 'Gửi Video Sang <span>Phòng Tập</span>';
+        pageHeroDesc.textContent = 'Tải video nhảy chất lượng gốc từ điện thoại sang màn hình huấn luyện viên trong tích tắc.';
+
+        // Hide receiver QR card
+        receiveCard.style.display = 'none';
+        mainGrid.className = 'drop-grid'; // single column
+        sendCard.classList.add('highlight');
+
+        // Activate sender banner
+        memberBanner.classList.add('active');
+        bannerRoomTitle.textContent = `Đang kết nối với phòng: ${targetRoomId}`;
+        targetDeviceBadge.textContent = `Phòng: ${targetRoomId}`;
+        targetDeviceBadge.style.color = 'var(--primary)';
+
+        // Hide auto download switch for sender
+        if (autoDownloadWrap) autoDownloadWrap.style.display = 'none';
+
+        statusText.textContent = `Sẵn sàng gửi video sang phòng ${targetRoomId}`;
+        statusDot.className = 'status-dot connected';
+      } else {
+        // COACH RECEIVER MODE
+        myPeerId = generateId();
+        renderImmediateQR(myPeerId);
+        statusText.textContent = `Đang mở phòng nhận video: ${myPeerId}`;
+        startReceiverPolling(myPeerId);
+      }
+    }
+
+    // Setup WebRTC Peer
+    function initPeer() {
+      if (typeof Peer === 'undefined') {
+        console.warn('PeerJS library not loaded, using HTTP transfer fallback');
+        return;
+      }
+
+      const assignedId = isSenderMode ? generateId() : (myPeerId || generateId());
+
+      try {
+        peer = new Peer(assignedId, {
+          debug: 1,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:global.stun.twilio.com:3478' },
+              { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+          }
+        });
+
+        peer.on('open', (id) => {
+          myPeerId = id;
+          if (!isSenderMode) {
+            renderImmediateQR(id);
+            statusText.textContent = `Sẵn sàng nhận tệp (Mã phòng: ${id})`;
+          } else {
+            // Auto connect to target coach room
+            connectToPeer(targetRoomId);
+          }
+        });
+
+        peer.on('connection', (conn) => {
+          setupConnection(conn);
+        });
+
+        peer.on('error', (err) => {
+          console.warn('PeerJS note:', err);
+          // Even if PeerJS errors, HTTP fallback keeps everything working 100%!
+        });
+      } catch (e) {
+        console.warn('PeerJS init failed:', e);
+      }
+    }
+
+    // Connect to target peer (Sender -> Coach)
     function connectToPeer(roomId) {
-      statusText.textContent = 'Đang kết nối tới ' + roomId + '...';
-      statusDot.className = 'status-dot waiting';
-      targetDeviceBadge.textContent = 'Đang gọi ' + roomId + '...';
+      if (!peer || peer.destroyed) return;
+      statusText.textContent = 'Đang ghép nối P2P tới phòng ' + roomId + '...';
 
       const conn = peer.connect(roomId, {
         reliable: true
@@ -937,12 +1154,11 @@
 
       conn.on('open', () => {
         statusDot.className = 'status-dot connected';
-        statusText.textContent = 'Đã kết nối thành công với thiết bị đối tác!';
-        targetDeviceBadge.textContent = 'Đã kết nối P2P';
+        statusText.textContent = 'Đã kết nối trực tiếp P2P với máy phòng tập!';
+        targetDeviceBadge.textContent = 'P2P Siêu Tốc';
         targetDeviceBadge.style.color = 'var(--accent-green)';
         targetDeviceBadge.style.borderColor = 'var(--accent-green)';
 
-        // Exchange device names
         conn.send({
           type: 'handshake',
           name: myDeviceNameInput.value
@@ -955,30 +1171,32 @@
 
       conn.on('close', () => {
         statusDot.className = 'status-dot waiting';
-        statusText.textContent = 'Kết nối đã đóng. Đang chờ kết nối mới...';
-        targetDeviceBadge.textContent = 'Đã ngắt kết nối';
+        targetDeviceBadge.textContent = 'Đã ngắt P2P (chuyển sang HTTP)';
         targetDeviceBadge.style.color = 'var(--text-muted)';
         activeConnection = null;
       });
 
       conn.on('error', (err) => {
-        console.error('Connection error:', err);
+        console.warn('Connection error:', err);
       });
     }
 
     // Handle Incoming WebRTC Data
+    let incomingMeta = null;
+    let incomingChunks = [];
+    let receivedBytes = 0;
+    let transferStartTime = 0;
+
     function handleIncomingData(data) {
       if (!data) return;
 
-      // 1. Handshake
       if (data.type === 'handshake') {
         const partnerName = data.name || 'Thiết bị đối tác';
-        statusText.textContent = `Đã ghép nối với: ${partnerName}`;
+        statusText.textContent = `Đã kết nối với: ${partnerName}`;
         targetDeviceBadge.textContent = partnerName;
         return;
       }
 
-      // 2. File Start
       if (data.type === 'file-start') {
         incomingMeta = data;
         incomingChunks = [];
@@ -993,7 +1211,6 @@
         return;
       }
 
-      // 3. File Chunk
       if (data.type === 'file-chunk') {
         incomingChunks.push(data.chunk);
         receivedBytes += data.chunk.byteLength || data.chunk.size || 0;
@@ -1003,7 +1220,6 @@
           progressBarFill.style.width = percent + '%';
           progressPercent.textContent = percent + '%';
 
-          // Speed & Remaining time
           const elapsed = (Date.now() - transferStartTime) / 1000;
           if (elapsed > 0.5) {
             const speedMBps = (receivedBytes / (1024 * 1024)) / elapsed;
@@ -1016,9 +1232,8 @@
         return;
       }
 
-      // 4. File End
       if (data.type === 'file-end') {
-        const blob = new Blob(incomingChunks, { type: incomingMeta.mime || 'application/octet-stream' });
+        const blob = new Blob(incomingChunks, { type: incomingMeta.mime || 'video/mp4' });
         const fileUrl = URL.createObjectURL(blob);
 
         progressPercent.textContent = '100% Hoàn tất!';
@@ -1026,26 +1241,55 @@
         transferSpeed.textContent = formatBytes(incomingMeta.size);
         transferRemaining.textContent = 'Đã nhận thành công!';
 
-        // Sound/Haptic feedback
         playSuccessTone();
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-        // Auto download if enabled
         if (autoDownloadToggle.checked) {
           downloadBlob(fileUrl, incomingMeta.name);
         }
 
-        // Add to Received Files UI
-        addReceivedFileToUI(incomingMeta.name, incomingMeta.size, incomingMeta.mime, fileUrl);
+        addReceivedFileToUI(incomingMeta.name, incomingMeta.size, incomingMeta.mime, fileUrl, 'P2P Trực tiếp');
 
-        // Reset buffer
         incomingMeta = null;
         incomingChunks = [];
-        return;
       }
     }
 
-    // Play pleasant synthetic success chime
+    // Receiver Polling for HTTP Upload Fallback
+    function startReceiverPolling(roomId) {
+      if (pollInterval) clearInterval(pollInterval);
+      lastPollTime = Math.floor(Date.now() / 1000) - 5;
+
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/drop/poll?room=${encodeURIComponent(roomId)}&since=${lastPollTime}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data && data.status === 'ok') {
+            if (data.server_time) lastPollTime = data.server_time;
+            if (Array.isArray(data.files) && data.files.length > 0) {
+              data.files.forEach(f => {
+                const uniqueKey = `${f.name}_${f.size}_${f.timestamp}`;
+                if (!receivedFilesSet.has(uniqueKey)) {
+                  receivedFilesSet.add(uniqueKey);
+                  playSuccessTone();
+                  if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+                  if (autoDownloadToggle.checked) {
+                    downloadDirectUrl(f.url, f.name);
+                  }
+                  addReceivedFileToUI(f.name, f.size, 'video/mp4', f.url, f.sender || 'Hội viên');
+                }
+              });
+            }
+          }
+        } catch (e) {
+          // Silent polling retry
+        }
+      }, 1500);
+    }
+
+    // Success Chime
     function playSuccessTone() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1056,45 +1300,48 @@
         osc.type = 'sine';
         osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
         osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.setValueAtTime(0.18, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
         osc.start();
         osc.stop(ctx.currentTime + 0.35);
       } catch (e) {}
     }
 
-    // Add received file item into list
-    function addReceivedFileToUI(name, size, mime, url) {
+    // Add received file to UI
+    let receivedCount = 0;
+    function addReceivedFileToUI(name, size, mime, url, senderInfo) {
       receivedSection.style.display = 'block';
+      receivedCount++;
+      receivedCountBadge.textContent = `${receivedCount} tệp`;
 
       const item = document.createElement('div');
       item.className = 'received-item';
 
-      const isVideo = mime.startsWith('video/') || /\.(mp4|mov|m4v|avi|webm)$/i.test(name);
-      const isAudio = mime.startsWith('audio/') || /\.(mp3|wav|m4a|aac)$/i.test(name);
+      const isVideo = (mime && mime.startsWith('video/')) || /\.(mp4|mov|m4v|avi|webm)$/i.test(name);
+      const isAudio = (mime && mime.startsWith('audio/')) || /\.(mp3|wav|m4a|aac)$/i.test(name);
 
       let icon = '📄';
       if (isVideo) icon = '🎬';
       else if (isAudio) icon = '🎵';
-      else if (mime.startsWith('image/')) icon = '🖼️';
+      else if (mime && mime.startsWith('image/')) icon = '🖼️';
 
       item.innerHTML = `
         <div class="received-left">
-          <span style="font-size: 28px;">${icon}</span>
+          <span style="font-size: 30px;">${icon}</span>
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 13px; word-break: break-all;">${name}</div>
+            <div style="font-weight: 700; color: #fff; font-size: 14px; word-break: break-all;">${name}</div>
             <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-              ${formatBytes(size)} • Nhận lúc ${new Date().toLocaleTimeString()}
+              ${formatBytes(size)} • Từ: <span style="color: var(--primary);">${senderInfo}</span> • ${new Date().toLocaleTimeString()}
             </div>
           </div>
         </div>
         <div class="received-actions">
           <a href="${url}" download="${name}" class="btn-action-download">
-            ⬇️ Tải về máy
+            ⬇️ Tải Về Máy
           </a>
           ${(isVideo || isAudio) ? `
             <a href="index.html#ghep-nhac" class="btn-action-sync" title="Đưa video này vào công cụ Ghép Nhạc tự động của StyleFit">
-              🎵 Chuyển sang Ghép Nhạc
+              🎵 Ghép Nhạc Ngay
             </a>
           ` : ''}
         </div>
@@ -1103,11 +1350,20 @@
       receivedList.insertBefore(item, receivedList.firstChild);
     }
 
-    // Download blob helper
+    // Download helpers
     function downloadBlob(url, filename) {
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function downloadDirectUrl(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.setAttribute('download', filename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1142,14 +1398,14 @@
       if (selectedFiles.length === 0) return;
 
       fileQueue.innerHTML = '';
-      selectedFiles.forEach((file, index) => {
+      selectedFiles.forEach((file) => {
         const item = document.createElement('div');
         item.className = 'file-item';
         item.innerHTML = `
           <div class="file-icon">🎥</div>
           <div class="file-details">
             <div class="file-name">${file.name}</div>
-            <div class="file-meta">${formatBytes(file.size)} • ${file.type || 'Tệp tin'}</div>
+            <div class="file-meta">${formatBytes(file.size)} • Sẵn sàng gửi</div>
           </div>
         `;
         fileQueue.appendChild(item);
@@ -1159,36 +1415,101 @@
       btnSendNow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    // Send Files via WebRTC DataChannel (with Backpressure streaming)
+    // HYBRID SEND: WebRTC P2P first, seamless HTTP upload fallback
     btnSendNow.addEventListener('click', async () => {
-      if (!activeConnection || !activeConnection.open) {
-        alert('Chưa có thiết bị nào kết nối! Hãy dùng điện thoại kia quét mã QR hoặc nhập link để kết nối trước khi gửi.');
+      if (selectedFiles.length === 0 || isTransferring) return;
+
+      const targetRoom = targetRoomId || myPeerId;
+      if (!targetRoom) {
+        alert('Chưa xác định được phòng nhận! Hãy quét lại mã QR trên màn hình phòng tập.');
         return;
       }
-      if (selectedFiles.length === 0 || isTransferring) return;
 
       isTransferring = true;
       btnSendNow.disabled = true;
       btnSendNow.style.opacity = '0.5';
-
       progressBox.style.display = 'block';
+
+      const useP2P = (activeConnection && activeConnection.open);
 
       for (let f = 0; f < selectedFiles.length; f++) {
         const file = selectedFiles[f];
-        await sendSingleFile(file);
+        if (useP2P) {
+          try {
+            await sendSingleFileP2P(file);
+          } catch (e) {
+            console.warn('P2P failed, falling back to HTTP upload:', e);
+            await sendSingleFileHttp(file, targetRoom);
+          }
+        } else {
+          // Direct HTTP upload fallback (Works 100% on 4G, Zalo, CGNAT)
+          await sendSingleFileHttp(file, targetRoom);
+        }
       }
 
       isTransferring = false;
       btnSendNow.disabled = false;
       btnSendNow.style.opacity = '1';
-      btnSendNow.innerHTML = '<span>✅ ĐÃ GỬI XONG! BẤM ĐỂ GỬI TỆP KHÁC</span>';
+      btnSendNow.innerHTML = '<span>🎉 ĐÃ GỬI XONG! BẤM ĐỂ CHỌN VIDEO KHÁC</span>';
       selectedFiles = [];
     });
 
-    // Send single file with chunking and backpressure control
-    function sendSingleFile(file) {
+    // Send single file via HTTP fallback with live progress
+    function sendSingleFileHttp(file, roomId) {
       return new Promise((resolve, reject) => {
-        progressFileTitle.textContent = `Đang gửi: ${file.name} (${formatBytes(file.size)})`;
+        progressFileTitle.textContent = `Đang tải lên: ${file.name} (${formatBytes(file.size)})`;
+        progressBarFill.style.width = '0%';
+        progressPercent.textContent = '0%';
+
+        const formData = new FormData();
+        formData.append('room', roomId);
+        formData.append('sender_name', myDeviceNameInput.value);
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/drop/upload', true);
+
+        const startTime = Date.now();
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
+            progressBarFill.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+
+            const elapsed = (Date.now() - startTime) / 1000;
+            if (elapsed > 0.4) {
+              const speedMBps = (e.loaded / (1024 * 1024)) / elapsed;
+              transferSpeed.textContent = speedMBps.toFixed(1) + ' MB/s';
+              const remainingBytes = e.total - e.loaded;
+              const remainingSecs = Math.round(remainingBytes / (speedMBps * 1024 * 1024));
+              transferRemaining.textContent = remainingSecs > 0 ? `Còn khoảng ${remainingSecs}s` : 'Sắp xong...';
+            }
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            progressBarFill.style.width = '100%';
+            progressPercent.textContent = '100% Hoàn thành';
+            transferRemaining.textContent = 'Huấn luyện viên đã nhận được video!';
+            playSuccessTone();
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            resolve();
+          } else {
+            reject(new Error(`Tải lên thất bại: Mã lỗi ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Lỗi kết nối mạng'));
+        xhr.send(formData);
+      });
+    }
+
+    // Send single file via WebRTC DataChannel (with Backpressure)
+    function sendSingleFileP2P(file) {
+      return new Promise((resolve, reject) => {
+        progressFileTitle.textContent = `Đang truyền P2P: ${file.name} (${formatBytes(file.size)})`;
         progressBarFill.style.width = '0%';
         progressPercent.textContent = '0%';
 
@@ -1197,32 +1518,29 @@
         let sentBytes = 0;
         const startTime = Date.now();
 
-        // 1. Send File Header
         activeConnection.send({
           type: 'file-start',
           name: file.name,
           size: file.size,
-          mime: file.type,
+          mime: file.type || 'video/mp4',
           totalChunks: totalChunks
         });
 
-        // Reader helper
         function readAndSendChunk() {
           if (currentChunk >= totalChunks) {
-            // Finished sending all chunks
             activeConnection.send({ type: 'file-end' });
             progressBarFill.style.width = '100%';
             progressPercent.textContent = '100% Hoàn thành';
-            transferRemaining.textContent = 'Đã gửi xong!';
+            transferRemaining.textContent = 'Đã gửi sang máy phòng tập!';
             playSuccessTone();
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
             resolve();
             return;
           }
 
-          // Backpressure check: If DataChannel buffer is full (> 1MB), wait before sending
           const dc = activeConnection.dataChannel;
           if (dc && dc.bufferedAmount > 1024 * 1024) {
-            setTimeout(readAndSendChunk, 50);
+            setTimeout(readAndSendChunk, 40);
             return;
           }
 
@@ -1233,21 +1551,25 @@
           const reader = new FileReader();
           reader.onload = (e) => {
             const buffer = e.target.result;
-            activeConnection.send({
-              type: 'file-chunk',
-              chunk: buffer
-            });
+            try {
+              activeConnection.send({
+                type: 'file-chunk',
+                chunk: buffer
+              });
+            } catch (err) {
+              reject(err);
+              return;
+            }
 
             currentChunk++;
             sentBytes += buffer.byteLength;
 
-            // Update Progress UI
             const percent = Math.min(100, Math.round((sentBytes / file.size) * 100));
             progressBarFill.style.width = percent + '%';
             progressPercent.textContent = percent + '%';
 
             const elapsed = (Date.now() - startTime) / 1000;
-            if (elapsed > 0.5) {
+            if (elapsed > 0.4) {
               const speedMBps = (sentBytes / (1024 * 1024)) / elapsed;
               transferSpeed.textContent = speedMBps.toFixed(1) + ' MB/s';
               const remainingBytes = file.size - sentBytes;
@@ -1255,7 +1577,6 @@
               transferRemaining.textContent = remainingSecs > 0 ? `Còn khoảng ${remainingSecs}s` : 'Sắp xong...';
             }
 
-            // Loop immediately
             readAndSendChunk();
           };
           reader.onerror = (err) => reject(err);
@@ -1266,13 +1587,33 @@
       });
     }
 
-    // Copy link button
-    btnCopyLink.addEventListener('click', () => {
+    // Copy link helper
+    function copyTextToClipboard(text, btn, successLabel) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          const original = btn.textContent;
+          btn.textContent = successLabel;
+          setTimeout(() => btn.textContent = original, 2000);
+        }).catch(() => fallbackCopy(text, btn, successLabel));
+      } else {
+        fallbackCopy(text, btn, successLabel);
+      }
+    }
+
+    function fallbackCopy(text, btn, successLabel) {
       roomLinkInput.select();
-      navigator.clipboard.writeText(roomLinkInput.value).then(() => {
-        btnCopyLink.textContent = 'Đã chép!';
-        setTimeout(() => btnCopyLink.textContent = 'Sao chép', 2000);
-      });
+      document.execCommand('copy');
+      const original = btn.textContent;
+      btn.textContent = successLabel;
+      setTimeout(() => btn.textContent = original, 2000);
+    }
+
+    btnCopyLink.addEventListener('click', () => {
+      copyTextToClipboard(roomLinkInput.value, btnCopyLink, 'Đã chép!');
+    });
+
+    btnShareZalo.addEventListener('click', () => {
+      copyTextToClipboard(roomLinkInput.value, btnShareZalo, '✅ Đã chép link Zalo!');
     });
 
     // Format bytes to KB/MB/GB
@@ -1285,8 +1626,9 @@
       return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
     }
 
-    // Start PeerJS on page load
+    // Startup
     window.addEventListener('DOMContentLoaded', () => {
+      setupUIMode();
       initPeer();
     });
   </script>

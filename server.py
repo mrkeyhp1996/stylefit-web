@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import time
 import uuid
 import shutil
@@ -700,6 +701,69 @@ async def api_downloader_download(url: str, format_id: str):
             "Cache-Control": "no-store, no-cache, must-revalidate",
         }
     )
+
+
+# ==============================================================================
+# STYLEFIT DROP - DIRECT HTTP FALLBACK & POLLING
+# ==============================================================================
+drop_rooms = {}  # room_id -> list of file records
+
+@app.post("/api/drop/upload")
+async def api_drop_upload(
+    room: str = Form(...),
+    sender_name: str = Form("Thiết bị đối tác"),
+    file: UploadFile = File(...)
+):
+    """Fallback trực tiếp: Nhận file tải lên từ điện thoại khi WebRTC P2P không kết nối được."""
+    try:
+        room_clean = re.sub(r'[^a-zA-Z0-9_-]', '', room)
+        safe_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', file.filename or 'video.mp4')
+        dest_filename = f"drop_{room_clean}_{int(time.time())}_{safe_filename}"
+        dest_path = UPLOADS_DIR / dest_filename
+        
+        with open(dest_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        file_size = dest_path.stat().st_size
+        file_url = f"/api/drop/file/{dest_filename}"
+        
+        file_info = {
+            "name": file.filename or safe_filename,
+            "size": file_size,
+            "url": file_url,
+            "sender": sender_name,
+            "timestamp": int(time.time())
+        }
+        
+        if room_clean not in drop_rooms:
+            drop_rooms[room_clean] = []
+        drop_rooms[room_clean].append(file_info)
+        
+        if len(drop_rooms[room_clean]) > 50:
+            drop_rooms[room_clean] = drop_rooms[room_clean][-50:]
+            
+        print(f"[StyleFit Drop] Received file {file_info['name']} ({file_size} bytes) for room {room_clean}")
+        return JSONResponse({"status": "ok", "file": file_info})
+    except Exception as e:
+        print(f"[StyleFit Drop Error] api_drop_upload: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+@app.get("/api/drop/poll")
+async def api_drop_poll(room: str, since: int = 0):
+    """Polling lấy danh sách file nhận được cho room."""
+    room_clean = re.sub(r'[^a-zA-Z0-9_-]', '', room)
+    files = drop_rooms.get(room_clean, [])
+    new_files = [f for f in files if f.get("timestamp", 0) > since]
+    return JSONResponse({"status": "ok", "files": new_files, "server_time": int(time.time())})
+
+@app.get("/api/drop/file/{filename}")
+async def api_drop_file(filename: str):
+    """Tải file drop đã nhận."""
+    safe_name = Path(filename).name
+    file_path = UPLOADS_DIR / safe_name
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File không tồn tại")
+    return FileResponse(path=str(file_path), filename=safe_name, media_type="application/octet-stream")
 
 
 app.mount("/exports", StaticFiles(directory=str(EXPORTS_DIR)), name="exports")
