@@ -918,7 +918,12 @@
         <h3 class="received-title">
           <span>📥</span> Danh Sách Video Đã Nhận
         </h3>
-        <span class="card-badge" id="receivedCountBadge">0 tệp</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" id="btnDownloadAll" class="btn-copy" style="display: none; background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700;" onclick="downloadAllReceivedFiles()">
+            📦 Tải Về Tất Cả
+          </button>
+          <span class="card-badge" id="receivedCountBadge">0 tệp</span>
+        </div>
       </div>
       <div id="receivedList"></div>
     </div>
@@ -1395,10 +1400,19 @@
 
     // Add received file to UI
     let receivedCount = 0;
+    const allReceivedFilesList = [];
+
     function addReceivedFileToUI(name, size, mime, url, senderInfo) {
       receivedSection.style.display = 'block';
       receivedCount++;
       receivedCountBadge.textContent = `${receivedCount} tệp`;
+      allReceivedFilesList.push({ name, url });
+
+      const btnDownloadAll = document.getElementById('btnDownloadAll');
+      if (btnDownloadAll && receivedCount > 1) {
+        btnDownloadAll.style.display = 'inline-flex';
+        btnDownloadAll.textContent = `📦 Tải Về Tất Cả (${receivedCount})`;
+      }
 
       const item = document.createElement('div');
       item.className = 'received-item';
@@ -1455,6 +1469,15 @@
       document.body.removeChild(a);
     }
 
+    function downloadAllReceivedFiles() {
+      if (allReceivedFilesList.length === 0) return;
+      allReceivedFilesList.forEach((item, idx) => {
+        setTimeout(() => {
+          downloadDirectUrl(item.url, item.name);
+        }, idx * 450);
+      });
+    }
+
     // File Selection & Drag Drop
     btnBrowse.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1483,21 +1506,28 @@
       selectedFiles = Array.from(files);
       if (selectedFiles.length === 0) return;
 
+      const count = selectedFiles.length;
+      const totalBytes = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+
       fileQueue.innerHTML = '';
-      selectedFiles.forEach((file) => {
+      selectedFiles.forEach((file, index) => {
         const item = document.createElement('div');
         item.className = 'file-item';
+        item.id = `queueItem_${index}`;
         item.innerHTML = `
           <div class="file-icon">🎥</div>
           <div class="file-details">
             <div class="file-name">${file.name}</div>
-            <div class="file-meta">${formatBytes(file.size)} • Sẵn sàng gửi</div>
+            <div class="file-meta">
+              ${formatBytes(file.size)} • <span id="queueStatus_${index}" style="color:var(--text-muted);">⏱️ Sẵn sàng gửi</span>
+            </div>
           </div>
         `;
         fileQueue.appendChild(item);
       });
 
       btnSendNow.style.display = 'flex';
+      btnSendNow.innerHTML = `<span>⚡ BẮT ĐẦU GỬI ${count} TỆP (${formatBytes(totalBytes)}) SANG MÁY TÍNH</span>`;
       btnSendNow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
@@ -1511,6 +1541,7 @@
         return;
       }
 
+      const count = selectedFiles.length;
       isTransferring = true;
       btnSendNow.disabled = true;
       btnSendNow.style.opacity = '0.5';
@@ -1520,23 +1551,37 @@
 
       for (let f = 0; f < selectedFiles.length; f++) {
         const file = selectedFiles[f];
-        if (useP2P) {
-          try {
-            await sendSingleFileP2P(file);
-          } catch (e) {
-            console.warn('P2P failed, falling back to HTTP upload:', e);
+        const statusEl = document.getElementById(`queueStatus_${f}`);
+        if (statusEl) {
+          statusEl.innerHTML = '<strong style="color:var(--primary);">⚡ Đang gửi...</strong>';
+        }
+        progressFileTitle.textContent = `[${f + 1}/${count}] Đang gửi: ${file.name} (${formatBytes(file.size)})`;
+
+        try {
+          if (useP2P) {
+            try {
+              await sendSingleFileP2P(file);
+            } catch (e) {
+              console.warn('[Drop] P2P failed, falling back to HTTP upload:', e);
+              await sendSingleFileHttp(file, targetRoom);
+            }
+          } else {
             await sendSingleFileHttp(file, targetRoom);
           }
-        } else {
-          // Direct HTTP upload fallback (Works 100% on 4G, Zalo, CGNAT)
-          await sendSingleFileHttp(file, targetRoom);
+          if (statusEl) {
+            statusEl.innerHTML = '<strong style="color:var(--accent-green);">✅ Đã gửi xong</strong>';
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.innerHTML = `<strong style="color:var(--accent-red);">❌ Lỗi: ${err.message}</strong>`;
+          }
         }
       }
 
       isTransferring = false;
       btnSendNow.disabled = false;
       btnSendNow.style.opacity = '1';
-      btnSendNow.innerHTML = '<span>🎉 ĐÃ GỬI XONG! BẤM ĐỂ CHỌN VIDEO KHÁC</span>';
+      btnSendNow.innerHTML = `<span>🎉 ĐÃ GỬI XONG TOÀN BỘ ${count} TỆP! BẤM ĐỂ CHỌN THÊM</span>`;
       selectedFiles = [];
     });
 

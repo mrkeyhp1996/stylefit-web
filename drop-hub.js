@@ -203,6 +203,14 @@
 
     hubReceivedCount++;
     if (countBadge) countBadge.textContent = `${hubReceivedCount} video`;
+    window._hubReceivedFilesList = window._hubReceivedFilesList || [];
+    window._hubReceivedFilesList.push({ name: fileInfo.name, url: fileInfo.url });
+
+    const btnAll = document.getElementById('btnSuiteDownloadAll');
+    if (btnAll && hubReceivedCount > 1) {
+      btnAll.style.display = 'inline-flex';
+      btnAll.textContent = `📦 Tải Về Tất Cả (${hubReceivedCount})`;
+    }
 
     if (!list) return;
 
@@ -296,6 +304,21 @@
   window.closeSuiteQRModal = function () {
     const modal = document.getElementById('suiteQrModal');
     if (modal) modal.classList.remove('active');
+  };
+
+  window.downloadAllSuiteFiles = function () {
+    const list = window._hubReceivedFilesList || [];
+    if (list.length === 0) return;
+    list.forEach((item, idx) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = item.url;
+        a.setAttribute('download', item.name);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }, idx * 450);
+    });
   };
 
   // Close modal on ESC key

@@ -926,7 +926,12 @@
         <div class="airdrop-received-container" id="suiteReceivedBox" style="display:none">
           <div class="received-container-header">
             <h4><span>📥</span> Video Hội Viên Vừa Gửi Sang Máy</h4>
-            <span class="received-count-pill" id="suiteReceivedCount">0 video</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <button type="button" id="btnSuiteDownloadAll" class="btn-copy-pill" style="display:none;background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700;" onclick="downloadAllSuiteFiles()">
+                📦 Tải Về Tất Cả
+              </button>
+              <span class="received-count-pill" id="suiteReceivedCount">0 video</span>
+            </div>
           </div>
           <div class="received-files-list" id="suiteReceivedList"></div>
         </div>
