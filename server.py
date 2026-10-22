@@ -748,6 +748,64 @@ async def api_drop_upload(
         print(f"[StyleFit Drop Error] api_drop_upload: {e}")
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
+
+@app.post("/api/drop/upload_chunk")
+async def api_drop_upload_chunk(
+    room: str = Form(...),
+    sender_name: str = Form("Thiết bị đối tác"),
+    file_id: str = Form(...),
+    filename: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    chunk: UploadFile = File(...)
+):
+    """Nhận từng chunk 5MB để vượt qua giới hạn 100MB Cloudflare khi tải video 4K dung lượng lớn (1GB - 2GB) qua 4G."""
+    try:
+        room_clean = re.sub(r'[^a-zA-Z0-9_-]', '', room)
+        safe_file_id = re.sub(r'[^a-zA-Z0-9_-]', '', file_id)
+        safe_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename or 'video.mp4')
+        
+        chunk_dir = UPLOADS_DIR / f"drop_chunks_{room_clean}_{safe_file_id}"
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        
+        part_path = chunk_dir / f"{chunk_index:05d}.part"
+        with open(part_path, "wb") as f:
+            shutil.copyfileobj(chunk.file, f)
+            
+        parts = sorted(list(chunk_dir.glob("*.part")))
+        if len(parts) == total_chunks:
+            dest_filename = f"drop_{room_clean}_{int(time.time())}_{safe_filename}"
+            dest_path = UPLOADS_DIR / dest_filename
+            with open(dest_path, "wb") as outfile:
+                for p in parts:
+                    with open(p, "rb") as infile:
+                        shutil.copyfileobj(infile, outfile)
+            
+            shutil.rmtree(chunk_dir, ignore_errors=True)
+            
+            file_size = dest_path.stat().st_size
+            file_url = f"/api/drop/file/{dest_filename}"
+            file_info = {
+                "name": filename or safe_filename,
+                "size": file_size,
+                "url": file_url,
+                "sender": sender_name,
+                "timestamp": int(time.time())
+            }
+            if room_clean not in drop_rooms:
+                drop_rooms[room_clean] = []
+            drop_rooms[room_clean].append(file_info)
+            if len(drop_rooms[room_clean]) > 50:
+                drop_rooms[room_clean] = drop_rooms[room_clean][-50:]
+                
+            print(f"[StyleFit Drop Chunk] Assembled {file_info['name']} ({file_size} bytes) for room {room_clean}")
+            return JSONResponse({"status": "ok", "completed": True, "file": file_info})
+            
+        return JSONResponse({"status": "ok", "completed": False, "chunk_index": chunk_index, "total_chunks": total_chunks})
+    except Exception as e:
+        print(f"[StyleFit Drop Chunk Error] {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
 @app.get("/api/drop/poll")
 async def api_drop_poll(room: str, since: int = 0):
     """Polling lấy danh sách file nhận được cho room."""
