@@ -357,15 +357,14 @@
       align-items: center;
       justify-content: center;
     }
-    #qrCode canvas {
-      display: none !important;
-    }
-    #qrCode img {
+    #qrCode canvas, #qrCode img {
       width: 200px !important;
       height: 200px !important;
-      display: block !important;
+      max-width: 200px;
+      max-height: 200px;
       image-rendering: pixelated;
       image-rendering: -webkit-optimize-contrast;
+      margin: 0 auto;
     }
 
     .room-link-box {
@@ -839,8 +838,9 @@
         </p>
 
         <!-- QR Canvas -->
-        <div class="qr-container" id="qrContainer">
+        <div class="qr-container" id="qrContainer" onclick="openDropZoomModal()" title="Bấm để phóng to mã QR toàn màn hình" style="cursor: pointer;">
           <div id="qrCode"></div>
+          <div style="font-size: 11px; color: #64748B; font-weight: 700; margin-top: 4px; text-transform: uppercase;">🔍 Bấm để phóng to</div>
         </div>
 
         <!-- Room link input -->
@@ -935,7 +935,70 @@
 
   </main>
 
+  <!-- LIGHTBOX MODAL: FULLSCREEN QR CODE -->
+  <div class="suite-qr-modal-overlay" id="dropQrModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(16px);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeDropZoomModal()">
+    <div style="background:#18181D;border:1px solid rgba(254,116,9,0.4);border-radius:28px;padding:36px 32px;max-width:480px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.7),0 0 40px rgba(254,116,9,0.2);">
+      <button type="button" onclick="closeDropZoomModal()" style="position:absolute;top:16px;right:18px;background:rgba(255,255,255,0.08);border:none;color:#94A3B8;font-size:1.5rem;width:36px;height:36px;border-radius:50%;cursor:pointer;">✕</button>
+      <h3 style="color:#fff;font-size:1.3rem;font-weight:800;margin-bottom:6px;">Quét Mã Gửi Video Sang Phòng Tập</h3>
+      <p style="color:var(--text-muted);font-size:0.85rem;">Phòng nhận: <strong id="dropModalCode" style="color:var(--primary);">...</strong></p>
+      
+      <div style="background:#fff;padding:20px;border-radius:20px;width:340px;height:340px;margin:18px auto;display:flex;align-items:center;justify-content:center;">
+        <div id="dropModalCanvas"></div>
+      </div>
+      
+      <p style="color:#94A3B8;font-size:0.82rem;margin-top:10px;">
+        📱 Hội viên dùng Camera iPhone, Android hoặc Zalo quét mã QR trên để gửi video tức thì.
+      </p>
+    </div>
+  </div>
+
   <script>
+    function openDropZoomModal() {
+      const modal = document.getElementById('dropQrModal');
+      const container = document.getElementById('dropModalCanvas');
+      const codeEl = document.getElementById('dropModalCode');
+      if (!modal || !container) return;
+      
+      const code = myPeerId || (shortCodeEl ? shortCodeEl.textContent : 'sf-live');
+      if (codeEl) codeEl.textContent = code;
+      const url = getPublicDropUrl(code);
+      
+      container.innerHTML = '';
+      if (typeof QRCode !== 'undefined') {
+        try {
+          new QRCode(container, {
+            text: url,
+            width: 300,
+            height: 300,
+            colorDark: '#0B0B0D',
+            colorLight: '#FFFFFF',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        } catch (e) {
+          const img = document.createElement('img');
+          img.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(url)}`;
+          img.style.width = '300px';
+          img.style.height = '300px';
+          container.appendChild(img);
+        }
+      } else {
+        const img = document.createElement('img');
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(url)}`;
+        img.style.width = '300px';
+        img.style.height = '300px';
+        container.appendChild(img);
+      }
+      modal.style.display = 'flex';
+    }
+
+    function closeDropZoomModal() {
+      const modal = document.getElementById('dropQrModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDropZoomModal();
+    });
     /* ==========================================================================
        STYLEFIT DROP - HYBRID P2P WEBRTC & HIGH-SPEED HTTP ENGINE
        Instant 0ms QR code render, full 4K dance video streaming, Zalo fail-safe
@@ -1026,11 +1089,18 @@
       return `${window.location.origin}${window.location.pathname}?room=${roomId}`;
     }
 
-    // Parse URL room params (?room=sf-xxxx or #sf-xxxx)
-    const urlParams = new URLSearchParams(window.location.search);
-    const targetRoomId = (urlParams.get('room') || window.location.hash.replace('#', '')).trim();
+    // Parse URL room params (?room=sf-xxxx or #sf-xxxx) strictly
+    function extractValidRoomId() {
+      const p = new URLSearchParams(window.location.search).get('room');
+      if (p && /^sf-[a-z0-9]+/i.test(p.trim())) return p.trim();
+      const h = (window.location.hash || '').replace('#', '').trim();
+      if (h && /^sf-[a-z0-9]+/i.test(h)) return h;
+      return '';
+    }
 
-    // Mode determination
+    const targetRoomId = extractValidRoomId();
+
+    // Mode determination: Only activate Sender Mode if targetRoomId is valid (e.g. sf-xxxx)
     const isSenderMode = Boolean(targetRoomId);
 
     // Render QR Code immediately at 0ms (no waiting for PeerJS server handshake)
@@ -1041,22 +1111,38 @@
       shortCodeEl.textContent = roomId;
 
       qrCodeDiv.innerHTML = '';
+      let rendered = false;
+
       if (typeof QRCode !== 'undefined') {
-        new QRCode(qrCodeDiv, {
-          text: publicUrl,
-          width: 200,
-          height: 200,
-          colorDark: '#0B0B0D',
-          colorLight: '#FFFFFF',
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      } else {
-        // Fallback to QR server API if script failed
-        const img = document.createElement('img');
-        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(publicUrl)}`;
-        img.alt = 'QR Code';
-        qrCodeDiv.appendChild(img);
+        try {
+          new QRCode(qrCodeDiv, {
+            text: publicUrl,
+            width: 200,
+            height: 200,
+            colorDark: '#0B0B0D',
+            colorLight: '#FFFFFF',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+          rendered = true;
+        } catch (e) {
+          console.warn('[Drop] QRCode rendering exception, using API fallback:', e);
+        }
       }
+
+      // Check if rendered or fallback needed
+      setTimeout(() => {
+        const hasImg = qrCodeDiv.querySelector('img');
+        const hasCanvas = qrCodeDiv.querySelector('canvas');
+        if (!hasImg && !hasCanvas) {
+          const img = document.createElement('img');
+          img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(publicUrl)}`;
+          img.alt = 'QR Code';
+          img.style.width = '200px';
+          img.style.height = '200px';
+          img.style.display = 'block';
+          qrCodeDiv.appendChild(img);
+        }
+      }, 100);
     }
 
     // Initialize UI based on Mode
@@ -1340,7 +1426,7 @@
             ⬇️ Tải Về Máy
           </a>
           ${(isVideo || isAudio) ? `
-            <a href="index.html#ghep-nhac" class="btn-action-sync" title="Đưa video này vào công cụ Ghép Nhạc tự động của StyleFit">
+            <a href="index.html?drop_file=${encodeURIComponent(url)}&drop_name=${encodeURIComponent(name)}#ghep-nhac" class="btn-action-sync" title="Đưa video này vào công cụ Ghép Nhạc tự động của StyleFit">
               🎵 Ghép Nhạc Ngay
             </a>
           ` : ''}

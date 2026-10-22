@@ -260,6 +260,7 @@ async function handleFileSelect(type, file) {
     }, 400);
   }
 }
+window.handleFileSelect = handleFileSelect;
 
 // ==========================================
 // 2.5. ROBUST RESUMABLE CHUNKED UPLOAD (3MB)
@@ -1688,6 +1689,28 @@ function handleSuiteHashRouting() {
 
 document.addEventListener('DOMContentLoaded', handleSuiteHashRouting);
 window.addEventListener('hashchange', handleSuiteHashRouting);
+
+// Auto-load video transferred from StyleFit Drop standalone tool
+async function checkDropFileUrlParam() {
+  const params = new URLSearchParams(window.location.search);
+  const dropFile = params.get('drop_file');
+  const dropName = params.get('drop_name') || 'video-nhay.mp4';
+  if (dropFile) {
+    try {
+      console.log('[StyleFit Sync] Loading video received from Drop:', dropFile);
+      const res = await fetch(dropFile);
+      if (res.ok) {
+        const blob = await res.blob();
+        const file = new File([blob], dropName, { type: blob.type || 'video/mp4' });
+        await handleFileSelect('Nhay', file);
+        switchSuiteTab('sync', null, true);
+      }
+    } catch (e) {
+      console.warn('[StyleFit Sync] Could not auto-load drop video:', e);
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded', checkDropFileUrlParam);
 
 /* ==========================================================================
    STYLEFIT SAVEFROM MEDIA DOWNLOADER LOGIC

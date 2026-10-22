@@ -809,45 +809,146 @@
 
     <!-- TAB 3 PANE: STYLEFIT AIRDROP (P2P FILE TRANSFER) -->
     <div id="suitePaneDrop" class="suite-tab-pane hidden">
-      <div class="airdrop-hub-card">
-        <div class="suite-badge" style="color: #10B981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);">
-          🚀 WEBRTC PEER-TO-PEER · ZERO COMPRESSION
+      <div class="airdrop-embedded-suite">
+        
+        <!-- Header row -->
+        <div class="airdrop-suite-header">
+          <div>
+            <div class="suite-badge" style="color: #10B981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);">
+              🚀 STYLEFIT AIRDROP · TRUYỀN VIDEO 4K KHÔNG NÉN
+            </div>
+            <h3 style="font-size: 1.7rem; font-weight: 800; color: #FFFFFF; margin: 10px 0 6px;">
+              Nhận Video Nhảy Trực Tiếp Từ Điện Thoại Hội Viên
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem;">
+              Hội viên dùng camera điện thoại hoặc Zalo quét mã QR bên dưới để gửi video gốc sang máy tính trong tích tắc.
+            </p>
+          </div>
+          <div class="airdrop-fullscreen-btn-wrap">
+            <a href="drop.html" target="_blank" class="btn-open-drop-fullscreen" title="Mở trang AirDrop toàn màn hình riêng biệt">
+              <span>↗️ Mở Chế Độ Toàn Màn Hình</span>
+            </a>
+          </div>
         </div>
-        <h3 style="font-size: 1.8rem; font-weight: 800; color: #FFFFFF; margin: 12px 0 8px;">
-          Truyền Video Gốc 4K Không Dây & Không Giới Hạn Dung Lượng
-        </h3>
-        <p style="color: var(--text-muted); max-width: 650px; margin: 0 auto; line-height: 1.6;">
-          Gửi trực tiếp video nhảy từ iPhone sang máy tính hoặc Android qua mạng nội bộ trong tích tắc. Không qua máy chủ trung gian, không nén giảm chất lượng!
+
+        <!-- Two Columns Grid -->
+        <div class="airdrop-embedded-grid">
+          
+          <!-- Card 1: Receiver QR Card -->
+          <div class="airdrop-box-card qr-card highlight">
+            <div class="box-card-header">
+              <div class="box-card-title">
+                <span>📲</span>
+                <h4>Mã Quét Nhận Video Phòng Tập</h4>
+              </div>
+              <span class="room-id-badge" id="suiteRoomBadge">Mã: sf-.....</span>
+            </div>
+
+            <p class="box-card-desc">
+              Mở <strong>Camera điện thoại</strong> hoặc <strong>Zalo</strong> quét mã QR này để gửi video ngay:
+            </p>
+
+            <!-- QR Container -->
+            <div class="suite-qr-wrapper" id="suiteQrWrapper" onclick="expandSuiteQR()" title="Bấm vào để phóng to mã QR">
+              <div id="suiteQrCode"></div>
+              <div class="qr-zoom-hint">🔍 Bấm để phóng to</div>
+            </div>
+
+            <!-- Link Box -->
+            <div class="suite-link-box">
+              <input type="text" id="suiteRoomLinkInput" readonly value="Đang tạo link kết nối...">
+              <button type="button" class="btn-copy-pill" id="btnSuiteCopyLink">Sao chép</button>
+            </div>
+
+            <!-- Share Buttons -->
+            <div class="suite-share-row">
+              <button type="button" class="btn-suite-zalo" id="btnSuiteShareZalo">
+                <span>💬</span> Sao chép link gửi qua Zalo
+              </button>
+            </div>
+
+            <div class="suite-qr-status">
+              <span class="status-indicator-dot online"></span>
+              <span id="suiteStatusText">Sẵn sàng nhận video từ hội viên</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Quick Direct Send & Features -->
+          <div class="airdrop-box-card sender-card">
+            <div class="box-card-header">
+              <div class="box-card-title">
+                <span>🚀</span>
+                <h4>Gửi Video Từ Máy Tính Này</h4>
+              </div>
+              <span class="room-id-badge">Tùy chọn</span>
+            </div>
+
+            <p class="box-card-desc">
+              Kéo thả hoặc chọn video từ máy tính này nếu bạn muốn gửi sang thiết bị khác:
+            </p>
+
+            <div class="suite-dropzone" id="suiteDropzone" onclick="document.getElementById('suiteFileInput').click()">
+              <input type="file" id="suiteFileInput" accept="video/*,image/*" multiple style="display:none">
+              <div class="dropzone-icon">📁</div>
+              <div class="dropzone-title">Bấm để chọn file hoặc kéo thả vào đây</div>
+              <div class="dropzone-sub">Hỗ trợ MP4, MOV 4K. Giữ nguyên 100% độ nét gốc.</div>
+            </div>
+
+            <!-- Features list -->
+            <div class="airdrop-mini-features">
+              <div class="mini-feat">
+                <span>⚡</span>
+                <div>
+                  <strong>Tốc độ truyền Wi-Fi tối đa</strong>
+                  <p>Không qua trung gian máy chủ, truyền nhanh 20 - 50 MB/s.</p>
+                </div>
+              </div>
+              <div class="mini-feat">
+                <span>🔒</span>
+                <div>
+                  <strong>Bảo mật 100% riêng tư</strong>
+                  <p>Video không bị nén mờ và không lưu trữ trên đám mây.</p>
+                </div>
+              </div>
+              <div class="mini-feat">
+                <span>🎯</span>
+                <div>
+                  <strong>Ghép Nhạc Tự Động 1-Chạm</strong>
+                  <p>Sau khi nhận video có thể bấm chuyển thẳng sang Ghép Nhạc ngay.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Received Videos Box -->
+        <div class="airdrop-received-container" id="suiteReceivedBox" style="display:none">
+          <div class="received-container-header">
+            <h4><span>📥</span> Video Hội Viên Vừa Gửi Sang Máy</h4>
+            <span class="received-count-pill" id="suiteReceivedCount">0 video</span>
+          </div>
+          <div class="received-files-list" id="suiteReceivedList"></div>
+        </div>
+
+      </div>
+    </div>
+    <!-- END TAB 3 PANE -->
+
+    <!-- LIGHTBOX MODAL: FULLSCREEN QR CODE -->
+    <div class="suite-qr-modal-overlay" id="suiteQrModal" onclick="if(event.target===this)closeSuiteQRModal()">
+      <div class="suite-qr-modal-box">
+        <button type="button" class="btn-close-qr-modal" onclick="closeSuiteQRModal()">✕</button>
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:800;margin-bottom:6px;">Quét Mã Gửi Video Sang Phòng Tập</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;">Phòng nhận: <strong id="suiteQrModalCode" style="color:var(--primary);">...</strong></p>
+        
+        <div class="modal-qr-canvas-wrap">
+          <div id="suiteQrModalCanvas"></div>
+        </div>
+        
+        <p style="color:#94A3B8;font-size:0.82rem;margin-top:10px;">
+          📱 Hội viên dùng Camera iPhone, Android hoặc Zalo quét mã QR trên để gửi video tức thì.
         </p>
-
-        <div class="airdrop-hub-features">
-          <div class="airdrop-feat-item">
-            <div class="airdrop-feat-icon">⚡</div>
-            <strong>Tốc Độ Tối Đa Wi-Fi</strong>
-            <span>Tận dụng băng thông Wi-Fi nội bộ tốc độ cao, gửi video 2GB chỉ mất vài chục giây.</span>
-          </div>
-          <div class="airdrop-feat-item">
-            <div class="airdrop-feat-icon">🔒</div>
-            <strong>Bảo Mật 100% P2P</strong>
-            <span>Dữ liệu truyền thẳng giữa 2 máy, không lưu bất kỳ byte nào trên server StyleFit.</span>
-          </div>
-          <div class="airdrop-feat-item">
-            <div class="airdrop-feat-icon">📱</div>
-            <strong>Đa Nền Tảng Không Cần Cài App</strong>
-            <span>Tương thích tức thì với iOS Safari, Android Chrome, Windows PC và MacBook.</span>
-          </div>
-        </div>
-
-        <div class="airdrop-actions-row">
-          <a href="drop.html" target="_blank" class="btn-primary btn-cta-large" style="text-decoration: none;">
-            <span class="btn-icon">🚀</span>
-            <span>Mở Trình Truyền File StyleFit AirDrop</span>
-          </a>
-          <a href="drop.html" class="btn-secondary btn-cta-large" style="text-decoration: none;">
-            <span class="btn-icon">📲</span>
-            <span>Kết Nối Phòng Truyền File (Room)</span>
-          </a>
-        </div>
       </div>
     </div>
     <!-- END TAB 3 PANE -->
@@ -1408,7 +1509,10 @@
   </footer>
 
   <!-- Scripts -->
+  <script src="qrcode.min.js"></script>
+  <script src="peerjs.min.js"></script>
   <script src="sync-engine.js?v=6.0"></script>
   <script src="app.js?v=6.1"></script>
+  <script src="drop-hub.js?v=1.0"></script>
 </body>
 </html>
