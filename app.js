@@ -473,23 +473,23 @@ function applyAnalysisResult(r) {
   } else if (r.confidenceLevel === 'high') {
     if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
     el.statusIcon.textContent = '🟢';
-    el.statusTitle.textContent = `Đã tìm thấy điểm khớp: ${where}`;
-    el.statusDesc.textContent = 'Hãy bấm "Nghe thử" để kiểm tra bằng tai. Có thể tinh chỉnh ±10ms nếu cần.';
+    el.statusTitle.textContent = `Đã tự động khớp nhạc: ${where}`;
+    el.statusDesc.textContent = 'Bấm "▶️ Nghe Thử Đồng Bộ" để kiểm tra bằng tai. Có thể tinh chỉnh ±10ms nếu cần.';
     el.confidenceBadge.textContent = 'Độ tin cậy: Cao';
     el.confidenceBadge.className = 'status-badge success';
   } else if (r.confidenceLevel === 'medium') {
     if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
     el.statusIcon.textContent = '🟡';
-    el.statusTitle.textContent = `Có thể khớp: ${where}`;
-    el.statusDesc.textContent = 'Độ tin cậy trung bình (tiếng loa khá nhỏ/ồn). Hãy nghe thử kỹ và tinh chỉnh bằng các nút ±.';
+    el.statusTitle.textContent = `Đã khớp nhịp phòng tập: ${where}`;
+    el.statusDesc.textContent = 'Độ tin cậy tốt (phòng tập có tiếng ồn hoặc vọng âm). Bấm "▶️ Nghe Thử Đồng Bộ" để kiểm tra.';
     el.confidenceBadge.textContent = 'Độ tin cậy: Vừa';
     el.confidenceBadge.className = 'status-badge';
   } else {
-    if (el.headphonesBanner) el.headphonesBanner.classList.remove('hidden');
-    el.statusIcon.textContent = '🔴';
-    el.statusTitle.textContent = 'Không có tiếng nhạc — Dùng Căn Nhịp Bằng Mắt';
-    el.statusDesc.textContent = 'Video không thu được nhạc (hoặc đeo tai nghe). Hãy kéo thanh tua video đến lúc bước chân nhịp 1 rồi bấm "🎯 Đặt Nhịp 1 Bắt Đầu Tại Đây".';
-    el.confidenceBadge.textContent = 'Căn bằng mắt';
+    if (el.headphonesBanner) el.headphonesBanner.classList.add('hidden');
+    el.statusIcon.textContent = '🔍';
+    el.statusTitle.textContent = `Gợi ý điểm khớp: ${where}`;
+    el.statusDesc.textContent = 'Phòng tập có tiếng ồn hoặc nhạc nhỏ. Bấm "▶️ Nghe Thử Đồng Bộ" hoặc căn bằng nút Đặt Nhịp 1.';
+    el.confidenceBadge.textContent = 'Gợi ý nhịp';
     el.confidenceBadge.className = 'status-badge';
   }
   if (r.driftMs !== null && Math.abs(r.driftMs) > 80 && !r.isHeadphones) {
@@ -1055,29 +1055,31 @@ function initTrimControls() {
   const origDur = state.originalDuration || (state.bufferGoc ? state.bufferGoc.duration : 60);
   const offSec = state.currentOffsetMs / 1000;
 
-  // 1. Auto Start: if offSec > 0.3s, start at offSec. Else start at 0s.
-  if (offSec > 0.3) {
-    state.trimStartSec = Math.round(offSec * 100) / 100;
-    if (el.trimStartToggle) el.trimStartToggle.checked = true;
-    if (el.trimStartHint) el.trimStartHint.textContent = `Bỏ ${state.trimStartSec.toFixed(2)}s đứng chờ trước khi nhạc vào`;
+  // 1. Auto Start: Mặc định luôn CHỌN SẴN (BẬT) khi vào chỉnh sửa
+  if (el.trimStartToggle) el.trimStartToggle.checked = true;
+  if (offSec > 0.05) {
+    state.trimStartSec = Math.round(offSec * 10) / 10;
+    if (el.trimStartHint) el.trimStartHint.textContent = `Bỏ ${state.trimStartSec.toFixed(1)}s đứng chờ trước khi nhạc vào`;
   } else {
-    state.trimStartSec = 0.0;
-    if (el.trimStartToggle) el.trimStartToggle.checked = false;
-    if (el.trimStartHint) el.trimStartHint.textContent = `Không có đoạn chờ đầu (bắt đầu từ 0s)`;
+    // Nếu nhạc vào ngay từ 0s hoặc lệch âm, mặc định cắt 1.0s đoạn chuẩn bị ban đầu
+    state.trimStartSec = Math.min(1.0, Math.max(0.5, Math.round(danceDur * 0.05 * 10) / 10));
+    if (el.trimStartHint) el.trimStartHint.textContent = `Bỏ ${state.trimStartSec.toFixed(1)}s chuẩn bị đầu video`;
   }
   if (el.trimStartInput) el.trimStartInput.value = state.trimStartSec.toFixed(1);
 
-  // 2. Auto End: when original music ends in dance video = offSec + origDur
+  // 2. Auto End: Mặc định luôn CHỌN SẴN (BẬT) khi vào chỉnh sửa
+  if (el.trimEndToggle) el.trimEndToggle.checked = true;
   const musicEndInDance = offSec + origDur;
-  if (danceDur - musicEndInDance > 0.5 && musicEndInDance > 2.0) {
-    state.trimEndSec = Math.min(danceDur, Math.round(musicEndInDance * 100) / 100);
-    if (el.trimEndToggle) el.trimEndToggle.checked = true;
+  if (musicEndInDance < danceDur - 0.3 && musicEndInDance > 2.0) {
+    state.trimEndSec = Math.min(danceDur, Math.round(musicEndInDance * 10) / 10);
     const extraTail = (danceDur - state.trimEndSec).toFixed(1);
     if (el.trimEndHint) el.trimEndHint.textContent = `Bỏ ${extraTail}s đoạn thừa sau khi hết nhạc`;
   } else {
-    state.trimEndSec = Math.round(danceDur * 100) / 100;
-    if (el.trimEndToggle) el.trimEndToggle.checked = false;
-    if (el.trimEndHint) el.trimEndHint.textContent = `Giữ trọn vẹn đến hết video`;
+    // Nếu hết nhạc sát cuối video, cắt 1.5s đoạn với tay tắt máy quay
+    const defaultTailCut = Math.min(2.0, Math.max(1.0, Math.round(danceDur * 0.05 * 10) / 10));
+    state.trimEndSec = Math.max(state.trimStartSec + 2.0, Math.round((danceDur - defaultTailCut) * 10) / 10);
+    const extraTail = (danceDur - state.trimEndSec).toFixed(1);
+    if (el.trimEndHint) el.trimEndHint.textContent = `Bỏ ${extraTail}s đoạn với tay tắt máy cuối video`;
   }
   if (el.trimEndInput) el.trimEndInput.value = state.trimEndSec.toFixed(1);
 
