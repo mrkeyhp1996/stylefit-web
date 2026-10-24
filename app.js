@@ -518,6 +518,17 @@ async function startAnalysis() {
   el.stepNav1.classList.add('completed');
   el.stepNav2.classList.add('active');
 
+  // Cuộn mượt màn hình lên đầu Studio căn nhịp Step 2
+  const step2Target = document.getElementById('stepNavWrap') || el.step2;
+  if (step2Target) {
+    const headerOffset = 70;
+    const targetY = step2Target.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+    window.scrollTo({
+      top: Math.max(0, targetY),
+      behavior: 'smooth'
+    });
+  }
+
   // MỞ KHÓA PREVIEW PLAYER NGAY LẬP TỨC: Cho phép HLV xem và nghe video ngay trong lúc đồng bộ nền!
   setupPreviewDurations();
   el.btnPlayPause.disabled = false;
@@ -1240,7 +1251,8 @@ function selectResolutionMode(mode) {
 // ==========================================
 // 7. STEP 3: EXPORT PIPELINE
 // ==========================================
-function goToStep3() {
+function goToStep3(e) {
+  if (e && e.preventDefault) e.preventDefault();
   stopPreview();
 
   el.step2.classList.add('hidden');
@@ -1248,6 +1260,25 @@ function goToStep3() {
   el.stepNav2.classList.remove('active');
   el.stepNav2.classList.add('completed');
   el.stepNav3.classList.add('active');
+
+  // Cuộn ngay lên đầu khung Step 3 để hội viên thấy rõ tiến trình xuất video đang chạy
+  const scrollTarget = document.getElementById('stepNavWrap') || el.step3 || document.getElementById('studio-suite');
+  if (scrollTarget) {
+    const headerOffset = 70;
+    const targetY = scrollTarget.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+    window.scrollTo({
+      top: Math.max(0, targetY),
+      behavior: 'smooth'
+    });
+    // Đảm bảo vị trí chuẩn xác sau khi ẩn Step 2 và hiển thị Step 3 (DOM reflow)
+    setTimeout(() => {
+      const recheckY = scrollTarget.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+      window.scrollTo({
+        top: Math.max(0, recheckY),
+        behavior: 'smooth'
+      });
+    }, 60);
+  }
 
   runExportPipeline();
 }
@@ -1368,6 +1399,17 @@ function onExportComplete(downloadUrl, filename) {
 
   // Stream preview video with Range support
   el.finalVideo.src = downloadUrl;
+
+  // Cuộn êm đến kết quả video để người dùng xem lại hoặc bấm tải về ngay
+  const resultTarget = document.getElementById('stepNavWrap') || el.step3;
+  if (resultTarget) {
+    const headerOffset = 70;
+    const targetY = resultTarget.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+    window.scrollTo({
+      top: Math.max(0, targetY),
+      behavior: 'smooth'
+    });
+  }
 
   // Prepare direct download link for fallback
   const directUrl = `${downloadUrl}?download=1`;

@@ -543,6 +543,7 @@ body::before {
   border: 1px solid var(--border-subtle);
   padding: 8px 16px;
   border-radius: 99px;
+  scroll-margin-top: 80px;
 }
 
 .step-nav-item {
@@ -1596,6 +1597,7 @@ body::before {
   padding: 36px 28px;
   text-align: center;
   box-shadow: var(--shadow-card);
+  scroll-margin-top: 80px;
 }
 
 .export-progress-box {
