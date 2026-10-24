@@ -1490,6 +1490,178 @@ body::before {
 }
 
 /* ==========================================
+   CAMERA DYNAMIC ZOOM CARD (CAPCUT PRO 💎 STYLE)
+   ========================================== */
+.zoom-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s ease;
+}
+
+.zoom-card:hover {
+  border-color: rgba(0, 229, 255, 0.35);
+}
+
+.zoom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.zoom-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zoom-badge-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zoom-diamond-icon {
+  font-size: 1.15rem;
+  filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.6));
+}
+
+.zoom-badge-title h4 {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.badge-vip-capcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.2) 0%, rgba(0, 145, 234, 0.25) 100%);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.5px;
+}
+
+.zoom-subtext {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.zoom-body {
+  transition: opacity 0.2s ease;
+}
+
+.zoom-controls-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.zoom-hint-text {
+  font-size: 0.82rem;
+  color: var(--accent-cyan);
+}
+
+.btn-zoom-reset {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-zoom-reset:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+.zoom-sliders-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+@media (max-width: 768px) {
+  .zoom-sliders-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zoom-slider-row {
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.zoom-label-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.zoom-param-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.zoom-val-badge {
+  background: rgba(0, 229, 255, 0.12);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider-track-wrap input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+}
+
+.zoom-slider-hints {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.zoom-default-tag {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+/* ==========================================
    RESOLUTION & QUALITY CARD
    ========================================== */
 .resolution-card {

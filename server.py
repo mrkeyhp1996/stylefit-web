@@ -108,13 +108,14 @@ import json
 def probe_video(path: Path):
     cmd = [
         "ffprobe", "-v", "error", "-select_streams", "v:0",
-        "-show_entries", "stream=width,height,r_frame_rate:stream_side_data=rotation:stream_tags=rotate",
+        "-show_entries", "format=duration:stream=width,height,r_frame_rate,duration:stream_side_data=rotation:stream_tags=rotate",
         "-of", "json", str(path)
     ]
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, creationflags=LOW_PRIORITY)
         data = json.loads(res.stdout)
         st = data.get("streams", [{}])[0]
+        fmt = data.get("format", {})
         w = st.get("width", 0)
         h = st.get("height", 0)
         rot = 0
@@ -134,6 +135,14 @@ def probe_video(path: Path):
         except Exception:
             fps = 30
 
+        dur = 60.0
+        if "duration" in st and st["duration"]:
+            try: dur = float(st["duration"])
+            except Exception: pass
+        elif "duration" in fmt and fmt["duration"]:
+            try: dur = float(fmt["duration"])
+            except Exception: pass
+
         is_4k = (w >= 3840 or h >= 3840 or (w >= 2160 and h >= 3840) or (w >= 3840 and h >= 2160))
         is_1080p = (w >= 1080 and h >= 1920) or (w >= 1920 and h >= 1080)
         if is_4k:
@@ -142,9 +151,9 @@ def probe_video(path: Path):
             label = f"Full HD 1080p ({w}x{h}) · {fps}fps"
         else:
             label = f"HD 720p ({w}x{h}) · {fps}fps"
-        return {"width": w, "height": h, "fps": fps, "is4k": is_4k, "is1080p": is_1080p, "label": label}
+        return {"width": w, "height": h, "fps": fps, "duration": dur, "is4k": is_4k, "is1080p": is_1080p, "label": label}
     except Exception:
-        return {"width": 1080, "height": 1920, "fps": 30, "is4k": False, "is1080p": True, "label": "Full HD 1080p"}
+        return {"width": 1080, "height": 1920, "fps": 30, "duration": 60.0, "is4k": False, "is1080p": True, "label": "Full HD 1080p"}
 
 
 async def save_upload(up: UploadFile, dest: Path):
@@ -475,13 +484,19 @@ async def render_video(
     trimStart: Optional[float] = Form(None),
     trimEnd: Optional[float] = Form(None),
     resolutionMode: str = Form("original"),  # "original" | "tiktok_1080p"
+    zoomEnabled: int = Form(1),
+    zoomSpeed: int = Form(20),
+    zoomRange: int = Form(20),
 ):
     """
-    Render synced video with optional lead-in & outro trim and resolution mode.
+    Render synced video with optional lead-in & outro trim, resolution mode, and dynamic slow zoom.
     offsetMs > 0 : music starts offsetMs AFTER beginning of uncut dance video.
     trimStart    : start cut timestamp (seconds) in dance video timeline.
     trimEnd      : end cut timestamp (seconds) in dance video timeline.
     resolutionMode: 'tiktok_1080p' (Lanczos upscale + unsharp filter) or 'original'.
+    zoomEnabled  : 1 to apply CapCut Pro-style subtle slow zoom, 0 to disable.
+    zoomSpeed    : zoom speed factor (default 20).
+    zoomRange    : zoom range depth % (default 20 = 1.20x max zoom).
     """
     if not sessionId.isalnum():
         raise HTTPException(status_code=400, detail="sessionId không hợp lệ")
@@ -539,34 +554,56 @@ async def render_video(
 
     # Audio mixing filter
     if vr > 0:
-        fc = (f"{music_chain}[m];[0:a]volume={vr}[r];"
-              f"[m][r]amix=inputs=2:duration=first:normalize=0[a]")
+        fc_audio = (f"{music_chain}[m];[0:a]volume={vr}[r];"
+                    f"[m][r]amix=inputs=2:duration=first:normalize=0[a]")
     else:
-        fc = f"{music_chain}[a]"
+        fc_audio = f"{music_chain}[a]"
 
     # Video filters & encoding
-    is_trimmed = (trim_start > 0) or (duration is not None)
+    vmeta = await asyncio.to_thread(probe_video, nhay)
+    w = vmeta.get("width", 1080)
+    h = vmeta.get("height", 1920)
+    fps = vmeta.get("fps", 30)
+    dur_sec = duration if duration is not None else vmeta.get("duration", 60.0)
+
+    # Target output dimensions
     if resolutionMode == "tiktok_1080p":
-        vmeta = await asyncio.to_thread(probe_video, nhay)
-        w, h = vmeta.get("width", 0), vmeta.get("height", 0)
-        if w == 1080 and h == 1920 and not is_trimmed:
-            # Already 1080x1920 portrait and not trimmed -> stream copy (instant 0.2s)
-            video_opts = ["-c:v", "copy"]
-        elif w == 1080 and h == 1920 and is_trimmed:
-            # Already 1080x1920 portrait -> re-encode frame-accurate without scaling filter (much faster)
-            video_opts = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
-        else:
-            # Scale & pad to 1080x1920 portrait
-            vf = "scale=1080:1920:force_original_aspect_ratio=decrease:flags=bicubic,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
-            video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
-    elif is_trimmed:
-        # Re-encode frame-accurate with ultrafast speed & pristine quality
+        out_w, out_h = 1080, 1920
+    else:
+        out_w, out_h = (w, h) if w > 0 and h > 0 else (1080, 1920)
+
+    is_trimmed = (trim_start > 0) or (duration is not None)
+
+    # Check if Dynamic Slow Zoom is enabled
+    if bool(zoomEnabled):
+        spd = max(5, min(100, int(zoomSpeed)))
+        rng = max(5, min(50, int(zoomRange)))
+        total_frames = max(1, int(dur_sec * fps))
+        frames_to_max = max(1, int(total_frames * (20.0 / spd)))
+        max_z = 1.0 + (rng / 100.0)
+        z_expr = f"min(1.0+{rng/100.0:.3f}*on/{frames_to_max},{max_z:.3f})"
+        vf_zoom = f"zoompan=z='{z_expr}':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={out_w}x{out_h}:fps={fps}"
+
+        fc = f"[0:v]{vf_zoom}[v];{fc_audio}"
+        video_map = "[v]"
         video_opts = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
     else:
-        # Untrimmed stream copy (instant 0.2s)
-        video_opts = ["-c:v", "copy"]
+        fc = fc_audio
+        video_map = "0:v:0"
+        if resolutionMode == "tiktok_1080p":
+            if w == 1080 and h == 1920 and not is_trimmed:
+                video_opts = ["-c:v", "copy"]
+            elif w == 1080 and h == 1920 and is_trimmed:
+                video_opts = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
+            else:
+                vf = "scale=1080:1920:force_original_aspect_ratio=decrease:flags=bicubic,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
+                video_opts = ["-vf", vf, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
+        elif is_trimmed:
+            video_opts = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-tune", "fastdecode", "-pix_fmt", "yuv420p"]
+        else:
+            video_opts = ["-c:v", "copy"]
 
-    args += ["-filter_complex", fc, "-map", "0:v:0", "-map", "[a]"] + video_opts
+    args += ["-filter_complex", fc, "-map", video_map, "-map", "[a]"] + video_opts
     if duration is not None:
         args += ["-t", f"{duration:.3f}"]
     args += ["-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out_path)]
@@ -581,6 +618,9 @@ async def render_video(
         "trimEndUsed": round(trim_end, 3) if trim_end is not None else None,
         "durationSec": round(duration, 2) if duration is not None else None,
         "resolutionMode": resolutionMode,
+        "zoomEnabled": bool(zoomEnabled),
+        "zoomSpeed": zoomSpeed,
+        "zoomRange": zoomRange,
         "downloadUrl": f"/exports/{out_name}",
         "filename": out_name,
     }

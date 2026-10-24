@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=6.1">
+  <link rel="stylesheet" href="style.css?v=6.2">
 </head>
 <body>
 
@@ -584,6 +584,67 @@
               <button type="button" class="btn-preview-trim" onclick="previewTrimmedRange()">
                 <span>▶ Nghe & xem thử đoạn cắt</span>
               </button>
+            </div>
+          </div>
+
+          <!-- Camera Dynamic Zoom Card (Hiệu ứng thu phóng nhỏ chuẩn CapCut Pro) -->
+          <div class="zoom-card" id="zoomCard">
+            <div class="zoom-header">
+              <div class="zoom-header-left">
+                <div class="zoom-badge-title">
+                  <span class="zoom-diamond-icon">💎</span>
+                  <h4>HIỆU ỨNG THU PHÓNG NHỎ (CINEMATIC SLOW ZOOM)</h4>
+                  <span class="badge-vip-capcut">CAPCUT PRO STYLE</span>
+                </div>
+                <p class="zoom-subtext">Tự động lướt máy quay zoom chậm vào người nhảy, triệt tiêu góc quay tĩnh chân máy đơn điệu</p>
+              </div>
+              <label class="switch-wrap">
+                <input type="checkbox" id="zoomToggle" checked onchange="onZoomToggleChange()">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="zoom-body" id="zoomBody">
+              <div class="zoom-controls-top">
+                <span class="zoom-hint-text">👁️ Xem trước chuyển động trực tiếp trên màn hình xem thử bên trên</span>
+                <button type="button" class="btn-zoom-reset" onclick="resetZoomDefaults()">
+                  <span>🔄 Đặt lại (20)</span>
+                </button>
+              </div>
+
+              <div class="zoom-sliders-grid">
+                <!-- Slider 1: Tốc độ -->
+                <div class="zoom-slider-row">
+                  <div class="zoom-label-wrap">
+                    <span class="zoom-param-title">Tốc độ</span>
+                    <span class="zoom-val-badge" id="zoomSpeedVal">20</span>
+                  </div>
+                  <div class="slider-track-wrap">
+                    <input type="range" id="zoomSpeedInput" min="5" max="100" value="20" step="1" oninput="onZoomParamChange()">
+                  </div>
+                  <div class="zoom-slider-hints">
+                    <span>Trôi rất chậm (Êm ru)</span>
+                    <span class="zoom-default-tag">Mặc định: 20</span>
+                    <span>Nhanh & dứt khoát</span>
+                  </div>
+                </div>
+
+                <!-- Slider 2: Khoảng -->
+                <div class="zoom-slider-row">
+                  <div class="zoom-label-wrap">
+                    <span class="zoom-param-title">Khoảng (Độ phóng)</span>
+                    <span class="zoom-val-badge" id="zoomRangeVal">20</span>
+                  </div>
+                  <div class="slider-track-wrap">
+                    <input type="range" id="zoomRangeInput" min="5" max="50" value="20" step="1" oninput="onZoomParamChange()">
+                  </div>
+                  <div class="zoom-slider-hints">
+                    <span>Nhẹ nhàng (5)</span>
+                    <span class="zoom-default-tag">Mặc định: 20</span>
+                    <span>Cận cảnh sâu (50)</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1517,7 +1578,7 @@
   <script src="qrcode.min.js"></script>
   <script src="peerjs.min.js"></script>
   <script src="sync-engine.js?v=6.0"></script>
-  <script src="app.js?v=6.3"></script>
+  <script src="app.js?v=6.4"></script>
   <script src="drop-hub.js?v=1.0"></script>
 </body>
 </html>

@@ -28,6 +28,9 @@ const state = {
   trimStartSec: 0,
   trimEndSec: 0,
   resolutionMode: 'tiktok_1080p',
+  zoomEnabled: true,
+  zoomSpeed: 20,
+  zoomRange: 20,
   trimPreviewTimer: null,
   previewAudioTimeout: null,
   backgroundUploadPromise: null,
@@ -101,6 +104,15 @@ const el = {
   trimSummaryTitle: document.getElementById('trimSummaryTitle'),
   trimSummaryDur: document.getElementById('trimSummaryDur'),
   trimSummaryBadges: document.getElementById('trimSummaryBadges'),
+
+  // Camera Dynamic Zoom elements (CapCut Pro 💎 Style)
+  zoomCard: document.getElementById('zoomCard'),
+  zoomToggle: document.getElementById('zoomToggle'),
+  zoomBody: document.getElementById('zoomBody'),
+  zoomSpeedInput: document.getElementById('zoomSpeedInput'),
+  zoomRangeInput: document.getElementById('zoomRangeInput'),
+  zoomSpeedVal: document.getElementById('zoomSpeedVal'),
+  zoomRangeVal: document.getElementById('zoomRangeVal'),
 
   // Resolution mode elements
   resCardTiktok: document.getElementById('resCardTiktok'),
@@ -435,6 +447,7 @@ function applyAnalysisResult(r) {
 
   // Initialize smart auto trimming for lead-in and outro
   initTrimControls();
+  resetZoomDefaults();
 
   // Handle detected video resolution & fps from phone camera
   if (r.videoMeta) {
@@ -827,6 +840,7 @@ function setupPreviewDurations() {
     }
     updateScrubberTimeDisplay(el.previewVideo.currentTime);
     updatePlayheadPosition();
+    updatePreviewZoom();
   };
 
   el.previewVideo.onended = () => {
@@ -840,6 +854,7 @@ function onVideoScrubberInput(val) {
   el.previewVideo.currentTime = targetTime;
   updateScrubberTimeDisplay(targetTime);
   updatePlayheadPosition();
+  updatePreviewZoom();
   if (state.isPlaying) {
     stopAudioPreview();
     if (state.hasSynced || state.currentOffsetMs !== 0) {
@@ -1240,6 +1255,68 @@ function previewTrimmedRange() {
   }, Math.max(500, durMs));
 }
 
+// ==========================================
+// 6.6. CAMERA DYNAMIC ZOOM CONTROLS (CAPCUT PRO 💎 STYLE)
+// ==========================================
+function onZoomToggleChange() {
+  const active = el.zoomToggle && el.zoomToggle.checked;
+  state.zoomEnabled = active;
+  if (el.zoomBody) {
+    el.zoomBody.style.opacity = active ? '1' : '0.35';
+    el.zoomBody.style.pointerEvents = active ? 'auto' : 'none';
+  }
+  updatePreviewZoom();
+}
+
+function onZoomParamChange() {
+  if (el.zoomSpeedInput) state.zoomSpeed = parseInt(el.zoomSpeedInput.value, 10) || 20;
+  if (el.zoomRangeInput) state.zoomRange = parseInt(el.zoomRangeInput.value, 10) || 20;
+
+  if (el.zoomSpeedVal) el.zoomSpeedVal.textContent = state.zoomSpeed;
+  if (el.zoomRangeVal) el.zoomRangeVal.textContent = state.zoomRange;
+
+  updatePreviewZoom();
+}
+
+function resetZoomDefaults() {
+  state.zoomSpeed = 20;
+  state.zoomRange = 20;
+  state.zoomEnabled = true;
+
+  if (el.zoomToggle) el.zoomToggle.checked = true;
+  if (el.zoomSpeedInput) el.zoomSpeedInput.value = 20;
+  if (el.zoomRangeInput) el.zoomRangeInput.value = 20;
+  if (el.zoomSpeedVal) el.zoomSpeedVal.textContent = '20';
+  if (el.zoomRangeVal) el.zoomRangeVal.textContent = '20';
+
+  if (el.zoomBody) {
+    el.zoomBody.style.opacity = '1';
+    el.zoomBody.style.pointerEvents = 'auto';
+  }
+  updatePreviewZoom();
+}
+
+function updatePreviewZoom() {
+  if (!el.previewVideo) return;
+  if (!state.zoomEnabled) {
+    el.previewVideo.style.transform = 'scale(1.0)';
+    return;
+  }
+  const dur = el.previewVideo.duration || state.danceDuration || 60;
+  const cur = el.previewVideo.currentTime || 0;
+  const progress = Math.max(0, Math.min(1, cur / Math.max(1, dur)));
+
+  // At default speed=20, it scales smoothly across the full duration
+  const speedMult = (state.zoomSpeed || 20) / 20.0;
+  const effectiveProgress = Math.min(1.0, progress * speedMult);
+
+  const maxZoom = 1.0 + ((state.zoomRange || 20) / 100.0);
+  const currentScale = 1.0 + (maxZoom - 1.0) * effectiveProgress;
+
+  el.previewVideo.style.transform = `scale(${currentScale.toFixed(4)})`;
+  el.previewVideo.style.transformOrigin = 'center center';
+}
+
 function selectResolutionMode(mode) {
   state.resolutionMode = mode;
   if (el.resCardTiktok) el.resCardTiktok.classList.toggle('active', mode === 'tiktok_1080p');
@@ -1355,6 +1432,9 @@ async function runExportPipeline() {
       formData.append('trimEnd', state.trimEndSec);
     }
     formData.append('resolutionMode', state.resolutionMode || 'tiktok_1080p');
+    formData.append('zoomEnabled', state.zoomEnabled ? '1' : '0');
+    formData.append('zoomSpeed', state.zoomSpeed || 20);
+    formData.append('zoomRange', state.zoomRange || 20);
 
     const response = await fetch('/api/render', { method: 'POST', body: formData });
     clearInterval(timer);
@@ -1673,6 +1753,9 @@ window.handleLeadSubmit = handleLeadSubmit;
 window.downloadSyncedVideo = downloadSyncedVideo;
 window.shareVideo = shareVideo;
 window.resetAll = resetAll;
+window.onZoomToggleChange = onZoomToggleChange;
+window.onZoomParamChange = onZoomParamChange;
+window.resetZoomDefaults = resetZoomDefaults;
 
 function switchSuiteTab(tabKey, btn, autoScroll = false) {
   const tabSync = document.getElementById('tabBtnSync');
